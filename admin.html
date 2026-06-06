@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>KGF Admin Panel 🛡️</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+:root{--pur:#9c27b0;--pur2:#ce93d8;--dark:#080410;--purDark:#0d0020;}
+body{background:var(--dark);color:var(--pur2);font-family:'Cinzel',serif;min-height:100vh;overflow-x:hidden;max-width:480px;margin:0 auto;}
+
+/* PARTICLES */
+#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+.spark{position:absolute;width:3px;height:3px;border-radius:50%;background:var(--pur2);animation:sparkFloat linear infinite;opacity:0;}
+@keyframes sparkFloat{0%{opacity:0;transform:translateY(100vh);}15%{opacity:1;}85%{opacity:.4;}100%{opacity:0;transform:translateY(-5vh);}}
+
+/* TOAST */
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-15px);z-index:999;background:linear-gradient(135deg,#1a0030,#2d0050);border:2px solid var(--pur);border-radius:14px;padding:13px 22px;text-align:center;font-family:'Cinzel Decorative',serif;font-size:.9rem;min-width:220px;opacity:0;transition:all .32s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.win-t{border-color:var(--pur2);color:var(--pur2);box-shadow:0 0 30px rgba(206,147,216,.5);}
+.toast.lose-t{border-color:#ff5555;color:#ff5555;}
+
+/* LOGIN */
+#login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;position:relative;z-index:1;}
+.adm-box{width:100%;max-width:380px;background:linear-gradient(145deg,#1a0030,#0d0020);border:2px solid var(--pur);border-radius:20px;padding:28px 22px;text-align:center;}
+.adm-logo{font-family:'Cinzel Decorative',serif;font-size:1.5rem;color:var(--pur2);text-shadow:0 0 14px var(--pur);margin-bottom:5px;}
+.adm-sub{font-size:.62rem;color:var(--pur);letter-spacing:3px;margin-bottom:22px;}
+.adm-field{width:100%;background:rgba(255,255,255,0.12);border:1.5px solid rgba(200,100,255,.7);border-radius:10px;padding:12px 14px;color:#ffffff;font-family:'Cinzel',serif;font-size:.85rem;margin-bottom:11px;outline:none;}
+.adm-field:focus{border-color:#e040fb;background:rgba(255,255,255,0.18);box-shadow:0 0 10px rgba(200,100,255,.4);}
+.adm-field::placeholder{color:rgba(255,255,255,0.6);}
+.adm-btn{width:100%;padding:13px;background:linear-gradient(135deg,#7b1fa2,#ce93d8);border:none;border-radius:12px;font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#fff;cursor:pointer;margin-top:6px;box-shadow:0 4px 15px rgba(123,31,162,.5);}
+.adm-btn:active{transform:scale(.95);}
+.adm-err{color:#ff5555;font-size:.72rem;margin-top:8px;min-height:18px;}
+
+/* MAIN PANEL */
+#main-panel{display:none;flex-direction:column;min-height:100vh;position:relative;z-index:1;}
+.adm-header{background:linear-gradient(90deg,#0d0020,#1a0030,#0d0020);border-bottom:2px solid var(--pur);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.adm-htitle{font-family:'Cinzel Decorative',serif;color:var(--pur2);font-size:1rem;text-shadow:0 0 8px var(--pur);}
+.adm-header-right{display:flex;align-items:center;gap:8px;}
+.refresh-btn{background:rgba(156,39,176,.2);border:1px solid rgba(156,39,176,.4);color:var(--pur2);font-size:.6rem;padding:5px 9px;border-radius:8px;cursor:pointer;font-family:'Cinzel',serif;}
+.adm-logout-btn{background:none;border:1px solid rgba(156,39,176,.5);color:var(--pur);font-size:.6rem;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'Cinzel',serif;}
+
+.adm-tabs{display:flex;background:#0d0020;border-bottom:1px solid rgba(156,39,176,.3);position:sticky;top:54px;z-index:99;}
+.adm-tab{flex:1;padding:10px 5px;text-align:center;cursor:pointer;font-family:'Cinzel',serif;font-size:.56rem;color:rgba(156,39,176,.6);letter-spacing:1px;border-bottom:2px solid transparent;transition:all .15s;}
+.adm-tab.active{color:var(--pur2);border-bottom-color:var(--pur);}
+
+.adm-content{padding:14px;padding-bottom:30px;}
+.adm-section-title{font-size:.6rem;color:var(--pur);letter-spacing:3px;margin-bottom:12px;}
+
+/* CARDS */
+.adm-card{background:linear-gradient(145deg,#1a0030,#0d0020);border:1px solid rgba(156,39,176,.35);border-radius:12px;padding:14px;margin-bottom:10px;}
+.adm-card-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.adm-card-key{font-size:.62rem;color:rgba(156,39,176,.7);letter-spacing:1px;}
+.adm-card-val{font-size:.75rem;color:var(--pur2);font-family:'Cinzel',serif;word-break:break-all;}
+.adm-req-btns{display:flex;gap:7px;margin-top:10px;}
+.adm-approve-btn{flex:1;padding:9px;background:linear-gradient(135deg,#1b5e20,#43a047);border:none;border-radius:9px;color:#fff;font-family:'Cinzel',serif;font-size:.65rem;cursor:pointer;}
+.adm-reject-btn{flex:1;padding:9px;background:linear-gradient(135deg,#b71c1c,#e53935);border:none;border-radius:9px;color:#fff;font-family:'Cinzel',serif;font-size:.65rem;cursor:pointer;}
+.adm-approve-btn:active,.adm-reject-btn:active{transform:scale(.93);}
+.adm-empty{text-align:center;color:#555;font-size:.7rem;padding:30px;letter-spacing:2px;}
+.adm-add-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.adm-add-input{flex:1;background:rgba(0,0,0,.5);border:1px solid rgba(156,39,176,.4);border-radius:9px;padding:9px 11px;color:var(--pur2);font-family:'Cinzel',serif;font-size:.8rem;outline:none;}
+.adm-add-btn{padding:9px 14px;background:linear-gradient(135deg,#7b1fa2,#ce93d8);border:none;border-radius:9px;color:#fff;font-family:'Cinzel',serif;font-size:.65rem;cursor:pointer;white-space:nowrap;}
+.adm-stat-chip{background:rgba(156,39,176,.12);border:1px solid rgba(156,39,176,.3);border-radius:10px;padding:12px;text-align:center;margin-bottom:10px;}
+.adm-stat-num{font-family:'Cinzel Decorative',serif;font-size:1.4rem;color:var(--pur2);}
+.adm-stat-lbl{font-size:.58rem;color:var(--pur);letter-spacing:2px;margin-top:3px;}
+.adm-badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:.58rem;font-family:'Cinzel',serif;letter-spacing:1px;}
+.adm-badge.pending{background:rgba(255,193,7,.15);color:#ffc107;border:1px solid rgba(255,193,7,.4);}
+.adm-badge.approved{background:rgba(67,160,71,.15);color:#43a047;border:1px solid rgba(67,160,71,.4);}
+.adm-badge.rejected{background:rgba(229,57,53,.15);color:#e53935;border:1px solid rgba(229,57,53,.4);}
+
+/* PWA INSTALL BAR */
+.adm-install-bar{position:fixed;bottom:16px;right:10px;z-index:300;display:block;}
+.adm-install-btn{padding:7px 13px;background:linear-gradient(135deg,#7b1fa2,#ce93d8);border:none;border-radius:20px;font-family:'Cinzel Decorative',serif;font-size:.55rem;color:#fff;cursor:pointer;box-shadow:0 3px 10px rgba(123,31,162,.5);}
+.adm-install-btn:active{transform:scale(.9);}
+
+/* AUTO MODE */
+.auto-mode-btn{width:100%;padding:13px;border:none;border-radius:12px;font-family:'Cinzel Decorative',serif;font-size:.85rem;cursor:pointer;margin-bottom:8px;letter-spacing:1px;}
+.auto-on{background:linear-gradient(135deg,#1b5e20,#43a047);color:#fff;box-shadow:0 0 20px rgba(67,160,71,.5);animation:glowGreen 1.5s infinite;}
+.auto-off{background:linear-gradient(145deg,#1a0030,#0d0020);border:2px solid rgba(156,39,176,.4);color:#9c27b0;}
+@keyframes glowGreen{0%,100%{box-shadow:0 0 10px rgba(67,160,71,.4);}50%{box-shadow:0 0 25px rgba(67,160,71,.9);}}
+
+/* PENDING BADGE */
+.pending-count{display:inline-block;background:#ffc107;color:#000;font-size:.55rem;font-family:'Cinzel',serif;border-radius:10px;padding:1px 6px;margin-left:4px;font-weight:bold;}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+
+/* SEARCH BAR */
+.search-bar{width:100%;background:rgba(0,0,0,.4);border:1px solid rgba(156,39,176,.4);border-radius:10px;padding:10px 13px;color:var(--pur2);font-family:'Cinzel',serif;font-size:.8rem;outline:none;margin-bottom:12px;}
+.search-bar::placeholder{color:rgba(156,39,176,.45);}
+
+/* AUTO REFRESH INDICATOR */
+.auto-refresh-bar{background:rgba(156,39,176,.08);border-bottom:1px solid rgba(156,39,176,.2);padding:5px 14px;display:flex;justify-content:space-between;align-items:center;font-size:.55rem;color:rgba(156,39,176,.6);letter-spacing:1px;}
+.refresh-dot{width:6px;height:6px;border-radius:50%;background:var(--pur);display:inline-block;margin-right:5px;animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+</style>
+</head>
+<body>
+<div id="particles"></div>
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="adm-box">
+    <div style="font-size:3rem;margin-bottom:8px;">🛡️</div>
+    <div class="adm-logo">ADMIN PANEL</div>
+    <div class="adm-sub">KGF CASINO CONTROL</div>
+    <input class="adm-field" type="text" id="adm-phone" placeholder="📱 Admin Phone Number" maxlength="15" autocomplete="off"/>
+    <input class="adm-field" type="password" id="adm-pass" placeholder="🔒 Password" maxlength="20" autocomplete="off"/>
+    
+    <button class="adm-btn" onclick="adminLogin()">🛡️ ADMIN LOGIN</button>
+    <div class="adm-err" id="adm-err"></div>
+    
+  </div>
+</div>
+
+<!-- MAIN PANEL -->
+<div id="main-panel">
+  <!-- Firebase Security Warning Banner -->
+  <div id="fb-security-banner" style="display:none;background:linear-gradient(135deg,rgba(183,28,28,.9),rgba(229,57,53,.8));padding:10px 16px;font-size:.65rem;color:#fff;letter-spacing:1px;text-align:center;border-bottom:2px solid #ff5555;">
+    ⚠️ <strong>SECURITY ALERT:</strong> Firebase Secret set nahi hai — Data PUBLICLY readable hai! Settings mein jaake Firebase Secret set karo!
+    <button onclick="adminTab('settings')" style="margin-left:10px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.5);color:#fff;padding:3px 10px;border-radius:6px;font-size:.6rem;cursor:pointer;">⚙️ Fix Karo</button>
+  </div>
+  <div class="adm-header">
+    <div class="adm-htitle">🛡️ KGF ADMIN</div>
+    <div class="adm-header-right">
+      <button class="refresh-btn" onclick="loadDataCloud().then(()=>{refreshCurrentTab();showToast('🔄 Cloud se refresh hua!','win')})">🔄 Refresh</button>
+      <button class="adm-logout-btn" onclick="adminLogout()">LOGOUT</button>
+    </div>
+  </div>
+  <div class="auto-refresh-bar">
+    <span><span class="refresh-dot"></span>AUTO REFRESH: 5 SEC</span>
+    <span id="live-total-coins-bar" style="color:#ffd700;font-size:.58rem;letter-spacing:1px;">🪙 Total: —</span>
+    <span id="last-refresh-time">—</span>
+  </div>
+  <div class="adm-tabs">
+    <div class="adm-tab active" id="atab-requests" onclick="adminTab('requests')">💸 REQUESTS <span class="pending-count" id="pending-badge" style="display:none;">0</span></div>
+    <div class="adm-tab" id="atab-users" onclick="adminTab('users')">👥 USERS</div>
+    <div class="adm-tab" id="atab-livebets" onclick="adminTab('livebets')" style="color:#ffd700;">🎮 LIVE</div>
+    <div class="adm-tab" id="atab-settings" onclick="adminTab('settings')">⚙️ SETTINGS</div>
+  </div>
+  <div class="adm-content" id="adm-content"></div>
+</div>
+
+<script>
+// ========== SECURITY UTILS (Admin) ==========
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function hashPassword(phone, pass) {
+  return await sha256(phone + ':' + pass + ':KGF_SALT_2024');
+}
+
+// XSS protection
+function escHtml(str) {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+// Brute force protection
+const _adminAttempts = { count: 0, lockedUntil: 0 };
+function checkAdminRateLimit() {
+  const now = Date.now();
+  if (now < _adminAttempts.lockedUntil) {
+    const secs = Math.ceil((_adminAttempts.lockedUntil - now) / 1000);
+    return { allowed: false, msg: `⛔ Zyada galat attempts! ${secs} second baad try karo.` };
+  }
+  _adminAttempts.count++;
+  if (_adminAttempts.count >= 5) {
+    _adminAttempts.lockedUntil = now + (5 * 60 * 1000); // 5 minute lock
+    _adminAttempts.count = 0;
+    return { allowed: false, msg: '⛔ 5 galat attempts! 5 minute ke liye locked.' };
+  }
+  return { allowed: true };
+}
+function resetAdminRateLimit() { _adminAttempts.count = 0; _adminAttempts.lockedUntil = 0; }
+
+// ========== CONFIG ==========
+let ADMIN_CREDS = {
+  phone: localStorage.getItem('kgf_admin_phone') || '',
+  password: localStorage.getItem('kgf_admin_pass') || ''
+};
+let adminLoggedIn = false;
+
+// ========== FIREBASE CONFIG ==========
+const FIREBASE_URL = 'https://kgf-boos-79590-default-rtdb.firebaseio.com';
+const FIREBASE_SECRET = localStorage.getItem('kgf_fb_secret') || '';
+function fbUrl(path){ return FIREBASE_URL + path + (FIREBASE_SECRET ? '?auth=' + FIREBASE_SECRET : ''); }
+
+// ========== FIREBASE LOAD & SAVE ==========
+async function loadFromCloud(){
+  try {
+    const res = await fetch(fbUrl('/kgf.json'));
+    if(!res.ok) return false;
+    const d = await res.json();
+    if(!d) return false;
+    if(d.users){ Object.assign(USERS, d.users); localStorage.setItem('kgf_users', JSON.stringify(d.users)); }
+    if(d.wa){ WA_NUMBER = d.wa; localStorage.setItem('kgf_wa_number', d.wa); }
+    if(d.wd){ withdrawRequests = d.wd; localStorage.setItem('kgf_withdraw_requests', JSON.stringify(d.wd)); }
+    if(d.boosted) localStorage.setItem('kgf_boosted_users', JSON.stringify(d.boosted));
+    if(d.globalBoost) localStorage.setItem('kgf_global_boost', JSON.stringify(d.globalBoost));
+    if(d.upi) localStorage.setItem('kgf_upi_id', d.upi);
+    if(d.live_ht) localStorage.setItem('kgf_live_bets_ht', JSON.stringify(d.live_ht));
+    if(d.live_clock) localStorage.setItem('kgf_live_bets_clock', JSON.stringify(d.live_clock));
+    if(d.admin_ht_result) localStorage.setItem('kgf_admin_ht_result', JSON.stringify(d.admin_ht_result));
+    if(d.admin_clock_result) localStorage.setItem('kgf_admin_clock_result', JSON.stringify(d.admin_clock_result));
+    return true;
+  } catch(e){ return false; }
+}
+
+async function saveToCloud(){
+  try {
+    const data = {
+      users: USERS,
+      wa: WA_NUMBER,
+      wd: withdrawRequests,
+      boosted: JSON.parse(localStorage.getItem('kgf_boosted_users')||'{}'),
+      globalBoost: JSON.parse(localStorage.getItem('kgf_global_boost')||'{}'),
+      upi: localStorage.getItem('kgf_upi_id')||'',
+      live_ht: JSON.parse(localStorage.getItem('kgf_live_bets_ht')||'[]'),
+      live_clock: JSON.parse(localStorage.getItem('kgf_live_bets_clock')||'[]'),
+      admin_ht_result: JSON.parse(localStorage.getItem('kgf_admin_ht_result')||'null'),
+      admin_clock_result: JSON.parse(localStorage.getItem('kgf_admin_clock_result')||'null')
+    };
+    await fetch(fbUrl('/kgf.json'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  } catch(e){}
+}
+
+
+function saveData(){
+  try {
+    localStorage.setItem('kgf_users', JSON.stringify(USERS));
+    localStorage.setItem('kgf_withdraw_requests', JSON.stringify(withdrawRequests));
+    localStorage.setItem('kgf_wa_number', WA_NUMBER);
+    localStorage.setItem('kgf_upi_id', UPI_ID);
+    localStorage.setItem('kgf_admin_phone', ADMIN_CREDS.phone);
+    localStorage.setItem('kgf_admin_pass', ADMIN_CREDS.password);
+  } catch(e){}
+  saveToCloud(); // Cloud pe bhi save — sab users ko turant update milega
+}
+
+function updatePendingBadge(){
+  const count = withdrawRequests.filter(r=>r.status==='pending').length;
+  const badge = document.getElementById('pending-badge');
+  if(badge){
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
+  }
+}
+
+// ========== LOGIN ==========
+
+async function adminLogin(){
+  const phone = document.getElementById('adm-phone').value.trim();
+  const pass = document.getElementById('adm-pass').value.trim();
+  const errEl = document.getElementById('adm-err');
+  errEl.textContent = '';
+  if(!phone || !pass){ errEl.textContent = '❌ Phone aur Password dono daalo!'; return; }
+
+  // Brute force check
+  const rl = checkAdminRateLimit();
+  if(!rl.allowed){ errEl.textContent = rl.msg; return; }
+
+  errEl.style.color = 'var(--pur)'; errEl.textContent = '⏳ Verifying...';
+  // Cloud se latest creds load karo
+  await loadFromCloud();
+
+  // SHA-256 hash se compare karo
+  const inputHash = await hashPassword(phone, pass);
+  const legacyHash = btoa(phone + ':' + pass);
+  const storedPass = ADMIN_CREDS.password || '';
+  const isLegacy = storedPass === legacyHash;
+  const isValid = phone === ADMIN_CREDS.phone && (storedPass === inputHash || isLegacy);
+
+  if(isValid){
+    // Legacy password ko silently upgrade karo SHA-256 pe
+    if(isLegacy){
+      ADMIN_CREDS.password = inputHash;
+      saveData();
+    }
+    resetAdminRateLimit();
+    adminLoggedIn = true;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-panel').style.display = 'block';
+    adminTab('requests');
+    updatePendingBadge();
+    checkFirebaseSecurityWarning();
+    showToast('✅ Admin panel mein welcome!', 'win');
+  } else {
+    const remaining = 5 - _adminAttempts.count;
+    errEl.style.color = '#ff5555';
+    errEl.textContent = `❌ Phone ya Password galat hai! (${remaining} attempts bache)`;
+  }
+}
+
+function adminLogout(){
+  adminLoggedIn = false;
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('main-panel').style.display = 'none';
+  document.getElementById('adm-phone').value = '';
+  document.getElementById('adm-pass').value = '';
+  document.getElementById('adm-err').textContent = '';
+}
+
+// Firebase security check — warn admin if secret not set
+function checkFirebaseSecurityWarning(){
+  const secret = localStorage.getItem('kgf_fb_secret');
+  const banner = document.getElementById('fb-security-banner');
+  if(banner){
+    banner.style.display = secret ? 'none' : 'block';
+  }
+}
+
+// ========== TABS ==========
+function adminTab(tab){
+  adminCurrentTab = tab;
+  ['requests','users','settings'].forEach(t=>{
+    const el = document.getElementById('atab-'+t);
+    if(el) el.classList.toggle('active', t===tab);
+  });
+  const content = document.getElementById('adm-content');
+  if(tab==='requests') renderAdminRequests(content);
+  else if(tab==='users') renderAdminUsers(content);
+  else if(tab==='livebets') renderLiveBets(content);
+  else if(tab==='settings') renderAdminSettings(content);
+}
+
+// ========== REQUESTS TAB ==========
+function renderAdminRequests(el){
+  const pending = withdrawRequests.filter(r=>r.status==='pending');
+  const done = withdrawRequests.filter(r=>r.status!=='pending');
+  let html = `<div class="adm-section-title">⏳ PENDING REQUESTS (${pending.length})</div>`;
+  if(pending.length===0){
+    html += '<div class="adm-empty">✅ KOI PENDING REQUEST NAHI</div>';
+  }
+  pending.forEach(r=>{
+    html += `<div class="adm-card">
+      <div class="adm-card-row"><span class="adm-card-key">NAAM</span><span class="adm-card-val">${escHtml(r.naam)}</span></div>
+      <div class="adm-card-row"><span class="adm-card-key">PHONE</span><span class="adm-card-val">${escHtml(r.user)}</span></div>
+      <div class="adm-card-row"><span class="adm-card-key">AMOUNT</span><span class="adm-card-val" style="color:#ffd700;font-family:'Cinzel Decorative',serif;">${Number(r.amount)||0} Coins</span></div>
+      <div class="adm-card-row"><span class="adm-card-key">UPI ID</span><span class="adm-card-val">${escHtml(r.upi)}</span></div>
+      <div class="adm-card-row"><span class="adm-card-key">TIME</span><span class="adm-card-val">${escHtml(r.time)}</span></div>
+      <div class="adm-req-btns">
+        <button class="adm-approve-btn" onclick="adminHandleReq(${Number(r.id)},'approved')">✅ APPROVE</button>
+        <button class="adm-reject-btn" onclick="adminHandleReq(${Number(r.id)},'rejected')">❌ REJECT & REFUND</button>
+      </div>
+    </div>`;
+  });
+  if(done.length>0){
+    html += `<div class="adm-section-title" style="margin-top:16px;">📋 HISTORY (${done.length})</div>`;
+    done.slice().reverse().slice(0,20).forEach(r=>{
+      html += `<div class="adm-card">
+        <div class="adm-card-row"><span class="adm-card-key">NAAM</span><span class="adm-card-val">${escHtml(r.naam)}</span></div>
+        <div class="adm-card-row"><span class="adm-card-key">PHONE</span><span class="adm-card-val">${escHtml(r.user)}</span></div>
+        <div class="adm-card-row"><span class="adm-card-key">UPI</span><span class="adm-card-val">${escHtml(r.upi)}</span></div>
+        <div class="adm-card-row"><span class="adm-card-key">AMOUNT</span><span class="adm-card-val">${Number(r.amount)||0} Coins</span></div>
+        <div class="adm-card-row"><span class="adm-card-key">STATUS</span><span class="adm-badge ${r.status==='approved'?'approved':'rejected'}">${r.status==='approved'?'APPROVED':'REJECTED'}</span></div>
+      </div>`;
+    });
+  }
+  el.innerHTML = html;
+}
+
+function adminHandleReq(id, action){
+  const req = withdrawRequests.find(r=>r.id===id);
+  if(!req) return;
+  req.status = action;
+  if(action==='rejected'){
+    if(USERS[req.user]){
+      USERS[req.user].coins = (USERS[req.user].coins||0) + req.amount;
+    }
+  }
+  saveData();
+  showToast(action==='approved' ? `✅ ${req.naam} ko APPROVE kiya! ${req.amount} coins` : `❌ ${req.naam} ko REJECT kiya! ${req.amount} refund`, 'win');
+  renderAdminRequests(document.getElementById('adm-content'));
+}
+
+// ========== USERS TAB ==========
+let userSearch = '';
+function renderAdminUsers(el){
+  // Fresh load karo har baar
+  try { USERS = JSON.parse(localStorage.getItem('kgf_users') || '{}'); } catch(e){ USERS = {}; }
+  const userList = Object.keys(USERS);
+  const filtered = userList.filter(phone=>{
+    if(!userSearch) return true;
+    const u = USERS[phone];
+    return phone.includes(userSearch) || (u.naam||'').toLowerCase().includes(userSearch.toLowerCase());
+  });
+  let html = `<input class="search-bar" type="text" placeholder="🔍 Name ya Phone se search..." value="${userSearch}" oninput="userSearch=this.value;renderAdminUsers(document.getElementById('adm-content'))" />`;
+  const totalCoinsAll = Object.values(USERS).reduce((sum,u)=>(sum+(u.coins||0)),0);
+  html += `<div style="display:flex;gap:8px;margin-bottom:10px;"><div class="adm-stat-chip" style="flex:1;"><div class="adm-stat-num">${Object.keys(USERS).length}</div><div class="adm-stat-lbl">TOTAL USERS</div></div><div class="adm-stat-chip" style="flex:1;"><div class="adm-stat-num" style="color:#ffd700;">${totalCoinsAll.toLocaleString()} 🪙</div><div class="adm-stat-lbl">SABKE COINS</div></div></div>`;
+  html += `<div class="adm-section-title">👥 TOTAL USERS: ${userList.length}${userSearch?' ('+filtered.length+' results)':''}</div>`;
+  if(filtered.length===0){
+    html += '<div class="adm-empty">KOI USER NAHI MILA</div>';
+    el.innerHTML = html; return;
+  }
+  filtered.forEach(phone=>{
+    const u = USERS[phone];
+    const safePhone = escHtml(phone);
+    html += `<div class="adm-card">
+      <div class="adm-card-row"><span class="adm-card-key">NAAM</span><span class="adm-card-val">${escHtml(u.naam)}</span></div>
+      <div class="adm-card-row"><span class="adm-card-key">PHONE</span><span class="adm-card-val">${safePhone}</span></div>
+      <div class="adm-card-row"><span class="adm-card-key">PASSWORD</span><span class="adm-card-val">***hidden***</span></div>
+      <div class="adm-card-row"><span class="adm-card-key">COINS</span><span class="adm-card-val" style="color:#ffd700;">${(Number(u.coins)||0).toLocaleString()} 🪙</span></div>
+      <div class="adm-card-row"><span class="adm-card-key">TOTAL GAMES</span><span class="adm-card-val">${Number(u.totalGames)||0}</span></div>
+      <div style="font-size:.6rem;color:var(--pur);letter-spacing:1px;margin:8px 0 4px;">➕ COINS ADD KARO:</div>
+      <div class="adm-add-row">
+        <input class="adm-add-input" type="number" id="addinput-${safePhone}" placeholder="Coins amount..." min="1" max="999999"/>
+        <button class="adm-add-btn" onclick="adminAddCoins('${safePhone}')">ADD</button>
+      </div>
+      <div class="adm-add-row" style="margin-top:6px;">
+        <input class="adm-add-input" type="number" id="setinput-${safePhone}" placeholder="Set total coins..." min="0" max="999999"/>
+        <button class="adm-add-btn" style="background:linear-gradient(135deg,#1b5e20,#43a047);" onclick="adminSetCoins('${safePhone}')">SET</button>
+      </div>
+      <div style="font-size:.6rem;color:var(--pur);letter-spacing:1px;margin:8px 0 4px;">🎯 WIN RATE BOOST (80%): ${getBoostedStatus(phone)}</div>
+      <div class="adm-add-row" style="margin-top:4px;">
+        <button class="adm-add-btn" style="flex:1;background:linear-gradient(135deg,#c8960c,#ffd700);color:#0a0500;" onclick="adminBoostUser('${safePhone}')">🚀 80% WIN ON</button>
+        <button class="adm-add-btn" style="flex:1;background:linear-gradient(135deg,#b71c1c,#e53935);" onclick="adminUnboostUser('${safePhone}')">❌ OFF</button>
+      </div>
+
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+function adminAddCoins(phone){
+  const amt = parseInt(document.getElementById('addinput-'+phone)?.value)||0;
+  if(amt<=0||amt>999999){showToast('❌ Valid amount bharo (1-999999)!','lose');return;}
+  if(!USERS[phone]) return;
+  USERS[phone].coins = (USERS[phone].coins||0) + amt;
+  saveData();
+  showToast(`✅ ${escHtml(USERS[phone].naam||phone)} ko ${amt} coins add kiye! Total: ${USERS[phone].coins}`, 'win');
+  renderAdminUsers(document.getElementById('adm-content'));
+}
+
+function adminSetCoins(phone){
+  const amt = parseInt(document.getElementById('setinput-'+phone)?.value);
+  if(isNaN(amt)||amt<0||amt>999999){showToast('❌ Valid amount bharo (0-999999)!','lose');return;}
+  if(!USERS[phone]) return;
+  USERS[phone].coins = amt;
+  saveData();
+  showToast(`✅ ${escHtml(USERS[phone].naam||phone)} ke coins set kiye: ${amt}`, 'win');
+  renderAdminUsers(document.getElementById('adm-content'));
+}
+
+function getBoostedStatus(phone){
+  try {
+    const b = JSON.parse(localStorage.getItem('kgf_boosted_users')||'{}');
+    return b[phone]&&b[phone].active ? '<span style="color:#ffd700;font-weight:bold;">✅ ACTIVE (80%)</span>' : '<span style="color:#666;">OFF</span>';
+  } catch(e){ return 'OFF'; }
+}
+
+
+
+function adminBoostUser(phone){
+  try {
+    const b = JSON.parse(localStorage.getItem('kgf_boosted_users')||'{}');
+    b[phone] = { active: true, rate: 0.80 };
+    localStorage.setItem('kgf_boosted_users', JSON.stringify(b));
+    showToast(`🚀 ${USERS[phone]?.naam||phone} ka win rate 80% kar diya!`, 'win');
+    renderAdminUsers(document.getElementById('adm-content'));
+  } catch(e){}
+}
+
+function adminUnboostUser(phone){
+  try {
+    const b = JSON.parse(localStorage.getItem('kgf_boosted_users')||'{}');
+    if(b[phone]) b[phone].active = false;
+    localStorage.setItem('kgf_boosted_users', JSON.stringify(b));
+    showToast(`❌ ${USERS[phone]?.naam||phone} ka win boost off kar diya!`, 'win');
+    renderAdminUsers(document.getElementById('adm-content'));
+  } catch(e){}
+}
+
+// ========== SETTINGS TAB ==========
+function renderAdminSettings(el){
+  const pending = withdrawRequests.filter(r=>r.status==='pending').length;
+  const approved = withdrawRequests.filter(r=>r.status==='approved').length;
+  const rejected = withdrawRequests.filter(r=>r.status==='rejected').length;
+  const totalCoinsInPlay = Object.values(USERS).reduce((sum,u)=>(sum+(u.coins||0)),0);
+
+  el.innerHTML = `
+    <div class="adm-section-title">📊 STATS</div>
+    <div class="stats-grid">
+      <div class="adm-stat-chip"><div class="adm-stat-num">${Object.keys(USERS).length}</div><div class="adm-stat-lbl">TOTAL USERS</div></div>
+      <div class="adm-stat-chip"><div class="adm-stat-num">${totalCoinsInPlay.toLocaleString()}</div><div class="adm-stat-lbl">TOTAL COINS</div></div>
+      <div class="adm-stat-chip"><div class="adm-stat-num" style="color:#ffc107;">${pending}</div><div class="adm-stat-lbl">PENDING</div></div>
+      <div class="adm-stat-chip"><div class="adm-stat-num" style="color:#43a047;">${approved}</div><div class="adm-stat-lbl">APPROVED</div></div>
+    </div>
+    <div class="adm-section-title" style="margin-top:16px;">🔄 FORCE APP UPDATE (SAB USERS KE LIYE)</div>
+    <div class="adm-card">
+      <div style="font-size:.65rem;color:var(--pur2);letter-spacing:1px;margin-bottom:10px;">YEH BUTTON DABAO TO SAB USERS KA APP 10 SECOND MEIN RELOAD HO JAAYEGA — NAYA CODE MIL JAAYEGA</div>
+      <button class="adm-add-btn" style="width:100%;padding:13px;background:linear-gradient(135deg,#1565c0,#42a5f5);font-size:.8rem;" onclick="adminForceUpdate()">🔄 SAB USERS KA APP UPDATE KARO</button>
+    </div>
+    <div class="adm-section-title" style="margin-top:16px;">🌍 GLOBAL WIN BOOST (SABKE LIYE)</div>
+    <div class="adm-card">
+      <div style="font-size:.65rem;color:var(--pur2);letter-spacing:1px;margin-bottom:10px;">YEH BUTTON DABAO TO SAB PLAYERS 70% JITENGE — BAND KARO TO WAPIS 20% HO JAAYEGA</div>
+      <div id="global-boost-status" style="font-size:.75rem;margin-bottom:12px;text-align:center;padding:8px;border-radius:8px;background:rgba(0,0,0,.3);"></div>
+      <div class="adm-add-row">
+        <button class="adm-add-btn" style="flex:1;background:linear-gradient(135deg,#1b5e20,#43a047);padding:12px;" onclick="setGlobalBoost(true)">🚀 70% WIN ON (SABKE LIYE)</button>
+        <button class="adm-add-btn" style="flex:1;background:linear-gradient(135deg,#b71c1c,#e53935);padding:12px;" onclick="setGlobalBoost(false)">❌ BAND KARO (20% WAPIS)</button>
+      </div>
+    </div>
+    <div class="adm-section-title" style="margin-top:16px;">💳 UPI ID (QR Code ke liye)</div>
+    <div class="adm-card">
+      <div class="adm-card-row"><span class="adm-card-key">CURRENT UPI</span><span class="adm-card-val" id="adm-cur-upi">${UPI_ID||'(set nahi hua)'}</span></div>
+      <div class="adm-add-row" style="margin-top:10px;">
+        <input class="adm-add-input" type="text" id="adm-new-upi" placeholder="UPI ID (e.g. name@upi)..." />
+        <button class="adm-add-btn" onclick="adminChangeUPI()">✅ SAVE</button>
+      </div>
+    </div>
+    <div class="adm-section-title" style="margin-top:6px;">📱 WHATSAPP NUMBER CHANGE KARO</div>
+    <div class="adm-card">
+      <div class="adm-card-row"><span class="adm-card-key">CURRENT NUMBER</span><span class="adm-card-val" id="adm-cur-wa">${WA_NUMBER}</span></div>
+      <div class="adm-add-row" style="margin-top:10px;">
+        <input class="adm-add-input" type="text" id="adm-new-wa" placeholder="Naya WhatsApp number (91XXXXXXXXXX)..." maxlength="20"/>
+        <button class="adm-add-btn" onclick="adminChangeWA()">✅ SAVE</button>
+      </div>
+    </div>
+    <div class="adm-section-title" style="margin-top:16px;">🔥 FIREBASE SECRET (Security)</div>
+    <div style="font-size:.62rem;color:#ff9800;margin-bottom:8px;background:rgba(255,152,0,.1);border:1px solid rgba(255,152,0,.3);border-radius:8px;padding:8px;">⚠️ Firebase Console mein Realtime Database → Rules mein auth rules zaroor set karo! Bina iske data public hai.</div>
+    <div style="font-size:.6rem;color:#aaa;margin-bottom:8px;">Paste karo: <code style="background:#111;padding:2px 6px;border-radius:4px;">{"rules":{".read":"auth!=null",".write":"auth!=null"}}</code></div>
+    <div style="font-size:.62rem;color:#${localStorage.getItem('kgf_fb_secret')?'81c784':'ff5555'};margin-bottom:8px;">Status: ${localStorage.getItem('kgf_fb_secret')?'✅ Secret set hai':'❌ Secret set nahi — DATA PUBLIC HAI!'}</div>
+    <button class="adm-btn" style="margin-bottom:12px;" onclick="adminChangeFBSecret()">🔑 Firebase Secret Set Karo</button>
+    <div class="adm-section-title" style="margin-top:16px;">🔑 ADMIN PASSWORD CHANGE KARO</div>
+    <div class="adm-card">
+      <div class="adm-card-row"><span class="adm-card-key">PHONE</span><span class="adm-card-val">${escHtml(ADMIN_CREDS.phone)}</span></div>
+      <div style="font-size:.6rem;color:var(--pur);letter-spacing:1px;margin:8px 0 4px;">PASSWORD CHANGE:</div>
+      <div class="adm-add-row">
+        <input class="adm-add-input" type="password" id="adm-new-pass" placeholder="Naya password..." maxlength="20"/>
+        <button class="adm-add-btn" onclick="adminChangePass()">✅ SAVE</button>
+      </div>
+    </div>
+    <div class="adm-section-title" style="margin-top:16px;">🗑️ DANGER ZONE</div>
+    <div class="adm-card">
+      <div style="font-size:.65rem;color:rgba(255,85,85,.7);margin-bottom:10px;letter-spacing:1px;">⚠️ YEH ACTIONS UNDO NAHI HO SAKTI!</div>
+      <div class="adm-add-row">
+        <button class="adm-reject-btn" onclick="clearAllRequests()" style="flex:1;">🗑️ Saari Requests Clear</button>
+        <button class="adm-reject-btn" onclick="clearAllUsers()" style="flex:1;">👤 Saare Users Delete</button>
+      </div>
+    </div>`;
+  // Global boost status update karo (function call template se nahi hoti, aise karo)
+  const gbEl = document.getElementById('global-boost-status');
+  if(gbEl) gbEl.innerHTML = getGlobalBoostStatus();
+}
+
+function adminChangeFBSecret(){
+  const secret = prompt('Firebase Secret Token daalo (Firebase Console > Project Settings > Service Accounts > Database Secrets):');
+  if(secret === null) return;
+  const trimmed = secret.trim();
+  if(trimmed.length < 20){
+    showToast('❌ Invalid secret! Firebase Console se copy karo.', 'lose');
+    return;
+  }
+  localStorage.setItem('kgf_fb_secret', trimmed);
+  showToast('✅ Firebase Secret save hua! Ab data protected hai.', 'win');
+  renderAdminSettings(document.getElementById('adm-content'));
+}
+
+function adminChangeUPI(){
+  const upi = document.getElementById('adm-new-upi')?.value.trim();
+  if(!upi || !upi.includes('@')){showToast('❌ Valid UPI ID bharo (e.g. name@upi)!','lose');return;}
+  UPI_ID = upi;
+  saveData();
+  document.getElementById('adm-cur-upi').textContent = upi;
+  document.getElementById('adm-new-upi').value = '';
+  showToast('✅ UPI ID save: ' + upi, 'win');
+}
+
+function adminChangeWA(){
+  let raw = document.getElementById('adm-new-wa')?.value.trim().replace(/\D/g,'');
+  if(!raw||raw.length<10){showToast('❌ Valid number bharo! (10 ya 12 digits)','lose');return;}
+  // Auto-add 91 if only 10 digits
+  if(raw.length===10) raw = '91' + raw;
+  WA_NUMBER = raw;
+  saveData();
+  document.getElementById('adm-cur-wa').textContent = raw;
+  document.getElementById('adm-new-wa').value = '';
+  showToast('✅ WhatsApp number save: ' + raw, 'win');
+}
+
+async function adminChangePass(){
+  const newPass = document.getElementById('adm-new-pass')?.value.trim();
+  if(!newPass||newPass.length<6){showToast('❌ Password kam se kam 6 characters ka hona chahiye!','lose');return;}
+  ADMIN_CREDS.password = await hashPassword(ADMIN_CREDS.phone, newPass);
+  saveData();
+  document.getElementById('adm-new-pass').value = '';
+  showToast('✅ Password save ho gaya!', 'win');
+}
+
+function adminForceUpdate(){
+  try {
+    const g = JSON.parse(localStorage.getItem('kgf_global_boost')||'{}');
+    g.forceReload = Date.now().toString(); // Unique timestamp — sab users detect karenge
+    localStorage.setItem('kgf_global_boost', JSON.stringify(g));
+    saveData(); // Cloud pe save — sab users ko milega
+    showToast('🔄 Force update bhej diya! 10 second mein sab users reload honge!', 'win');
+  } catch(e){ showToast('❌ Error!', 'lose'); }
+}
+
+function getGlobalBoostStatus(){
+  try {
+    const g = JSON.parse(localStorage.getItem('kgf_global_boost')||'{}');
+    if(g.active) return '<span style="color:#ffd700;font-size:.85rem;">✅ ACTIVE — SAB PLAYERS 70% JEET RAHE HAIN 🚀</span>';
+    return '<span style="color:#666;">❌ OFF — Normal win rate (20%) chal raha hai</span>';
+  } catch(e){ return 'OFF'; }
+}
+
+function setGlobalBoost(on){
+  try {
+    const g = on ? { active: true, rate: 0.70 } : { active: false, rate: 0.20 };
+    localStorage.setItem('kgf_global_boost', JSON.stringify(g));
+    if(on){
+      showToast('🚀 Global 70% Win BOOST ON! Sab players zyada jeetenge!', 'win');
+    } else {
+      showToast('❌ Global Boost BAND! Wapis 20% win rate.', 'lose');
+    }
+    renderAdminSettings(document.getElementById('adm-content'));
+  } catch(e){}
+}
+
+function clearAllRequests(){
+  if(!confirm('Pakka? Saari requests delete karoge?')) return;
+  withdrawRequests = [];
+  saveData();
+  showToast('🗑️ Saari requests clear ho gayi!', 'win');
+  renderAdminSettings(document.getElementById('adm-content'));
+}
+
+function clearAllUsers(){
+  if(!confirm('PAKKA?! Saare users delete hojayenge! Coins bhi jayenge!')) return;
+  if(!confirm('Aakhri baar pooch raha hoon — SURE HO?')) return;
+  USERS = {};
+  withdrawRequests = [];
+  saveData();
+  showToast('👤 Saare users delete ho gaye!', 'win');
+  renderAdminSettings(document.getElementById('adm-content'));
+}
+
+
+// ========== LIVE BETS TAB ==========
+// User bets localStorage mein store honge (index.html se)
+// Format: kgf_live_bets = { ht: [{user, naam, side, amount, time}], clock: [{user, naam, num, amount, time}] }
+
+function renderLiveBets(el) {
+  let htBets = [], clockBets = [];
+  try { htBets = JSON.parse(localStorage.getItem('kgf_live_bets_ht') || '[]'); } catch(e){}
+  try { clockBets = JSON.parse(localStorage.getItem('kgf_live_bets_clock') || '[]'); } catch(e){}
+
+  // Totals
+  const htHedTotal = htBets.filter(b=>b.side==='hed').reduce((s,b)=>s+b.amount,0);
+  const htTelTotal = htBets.filter(b=>b.side==='tel').reduce((s,b)=>s+b.amount,0);
+  const clockTotal = clockBets.reduce((s,b)=>s+b.amount,0);
+
+  const isAutoOn = autoModeActive;
+  let html = `
+  <div style="background:rgba(67,160,71,.05);border:2px solid ${isAutoOn?'rgba(67,160,71,.6)':'rgba(156,39,176,.3)'};border-radius:14px;padding:14px;margin-bottom:16px;">
+    <div style="font-size:.65rem;color:${isAutoOn?'#81c784':'#9c27b0'};letter-spacing:2px;margin-bottom:8px;">${isAutoOn?'🤖 AUTO MODE CHAL RAHA HAI':'🤖 AUTO MODE — OFF'}</div>
+    <div style="font-size:.6rem;color:#aaa;margin-bottom:10px;">AUTO ON hone par: Jo side pe ZYADA pesa — woh haari, kam wala jeeta. Admin ko kuch nahi karna.</div>
+    <button id="auto-mode-btn" class="auto-mode-btn ${isAutoOn?'auto-on':'auto-off'}" onclick="toggleAutoMode()">${isAutoOn?'🟢 AUTO MODE ON — Chal Raha Hai...':'🤖 AUTO MODE OFF — Click to Start'}</button>
+  </div>
+  <div style="background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.2);border-radius:12px;padding:14px;margin-bottom:14px;">
+    <div style="font-size:.7rem;color:#ffd700;letter-spacing:2px;margin-bottom:10px;">🪙 HED & TELL — LIVE BETS</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <div style="flex:1;background:rgba(200,150,12,.15);border:1px solid rgba(200,150,12,.4);border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:.6rem;color:#ffa726;letter-spacing:1px;">👑 HED</div>
+        <div style="font-family:'Cinzel Decorative',serif;font-size:1.2rem;color:#ffd700;">${htBets.filter(b=>b.side==='hed').length} bets</div>
+        <div style="font-size:.75rem;color:#ffd700;">💰 ${htHedTotal} coins</div>
+      </div>
+      <div style="flex:1;background:rgba(200,150,12,.15);border:1px solid rgba(200,150,12,.4);border-radius:10px;padding:10px;text-align:center;">
+        <div style="font-size:.6rem;color:#ffa726;letter-spacing:1px;">✖ TELL</div>
+        <div style="font-family:'Cinzel Decorative',serif;font-size:1.2rem;color:#ffd700;">${htBets.filter(b=>b.side==='tel').length} bets</div>
+        <div style="font-size:.75rem;color:#ffd700;">💰 ${htTelTotal} coins</div>
+      </div>
+    </div>`;
+
+  // Individual bets
+  if(htBets.length === 0) {
+    html += `<div style="text-align:center;color:#555;font-size:.7rem;padding:10px;">Abhi koi bet nahi</div>`;
+  } else {
+    htBets.forEach(b => {
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,215,0,.1);">
+        <div>
+          <div style="font-size:.72rem;color:#ce93d8;">${escHtml(b.naam||b.user)}</div>
+          <div style="font-size:.58rem;color:#666;">${b.side==='hed'?'👑 HED':'✖ TELL'}</div>
+        </div>
+        <div style="font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#ffd700;">💰 ${Number(b.amount)||0}</div>
+      </div>`;
+    });
+  }
+
+  // Admin result buttons
+  html += `
+    <div style="font-size:.6rem;color:#9c27b0;letter-spacing:2px;margin:12px 0 8px;">⚡ RESULT CHOOSE KARO (ADMIN)</div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="adminForceHTResult('hed')" style="flex:1;padding:12px;background:linear-gradient(135deg,#c8960c,#ffd700);border:none;border-radius:10px;font-family:'Cinzel Decorative',serif;font-size:.75rem;color:#0a0500;cursor:pointer;">👑 HED RESULT</button>
+      <button onclick="adminForceHTResult('tel')" style="flex:1;padding:12px;background:linear-gradient(135deg,#333,#555);border:none;border-radius:10px;font-family:'Cinzel Decorative',serif;font-size:.75rem;color:#ffd700;cursor:pointer;">✖ TELL RESULT</button>
+    </div>
+    <button onclick="adminClearHTBets()" style="width:100%;margin-top:8px;padding:8px;background:rgba(255,85,85,.15);border:1px solid rgba(255,85,85,.3);border-radius:8px;color:#ff5555;font-family:'Cinzel',serif;font-size:.6rem;cursor:pointer;">🗑️ Bets Clear Karo</button>
+  </div>
+
+  <div style="background:rgba(255,215,0,.05);border:1px solid rgba(255,215,0,.2);border-radius:12px;padding:14px;margin-bottom:14px;">
+    <div style="font-size:.7rem;color:#ffd700;letter-spacing:2px;margin-bottom:10px;">🕐 CLOCK SPIN — LIVE BETS</div>
+    <div style="background:rgba(200,150,12,.1);border-radius:8px;padding:8px;text-align:center;margin-bottom:10px;">
+      <div style="font-size:.6rem;color:#ffa726;">TOTAL BETS</div>
+      <div style="font-family:'Cinzel Decorative',serif;font-size:1.2rem;color:#ffd700;">${clockBets.length} bets — 💰 ${clockTotal} coins</div>
+    </div>`;
+
+  // Number wise totals
+  const numGroups = {};
+  clockBets.forEach(b => { numGroups[b.num] = (numGroups[b.num]||0) + b.amount; });
+  if(Object.keys(numGroups).length > 0) {
+    html += `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-bottom:10px;">`;
+    for(let i=1;i<=12;i++) {
+      const amt = numGroups[i] || 0;
+      html += `<div style="background:${amt>0?'rgba(200,150,12,.25)':'rgba(0,0,0,.3)'};border:1px solid ${amt>0?'rgba(200,150,12,.6)':'rgba(255,255,255,.05)'};border-radius:6px;padding:5px 2px;text-align:center;">
+        <div style="font-size:.65rem;color:#ffd700;">${i}</div>
+        <div style="font-size:.58rem;color:${amt>0?'#ffa726':'#444'};">${amt>0?amt+'c':'—'}</div>
+      </div>`;
+    }
+    html += `</div>`;
+
+    // Individual bets
+    clockBets.forEach(b => {
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,215,0,.1);">
+        <div>
+          <div style="font-size:.72rem;color:#ce93d8;">${escHtml(b.naam||b.user)}</div>
+          <div style="font-size:.58rem;color:#666;">Number: ${Number(b.num)||0}</div>
+        </div>
+        <div style="font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#ffd700;">💰 ${Number(b.amount)||0}</div>
+      </div>`;
+    });
+  } else {
+    html += `<div style="text-align:center;color:#555;font-size:.7rem;padding:10px;">Abhi koi bet nahi</div>`;
+  }
+
+  html += `
+    <div style="font-size:.6rem;color:#9c27b0;letter-spacing:2px;margin:12px 0 8px;">⚡ NUMBER CHOOSE KARO (ADMIN RESULT)</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px;">`;
+  for(let i=1;i<=12;i++) {
+    html += `<button onclick="adminForceClockResult(${i})" style="padding:8px 4px;background:linear-gradient(135deg,#1a0d00,#2d1600);border:2px solid rgba(200,150,12,.4);border-radius:8px;color:#ffd700;font-family:'Cinzel Decorative',serif;font-size:.7rem;cursor:pointer;">${i}</button>`;
+  }
+  html += `</div>
+    <button onclick="adminClearClockBets()" style="width:100%;padding:8px;background:rgba(255,85,85,.15);border:1px solid rgba(255,85,85,.3);border-radius:8px;color:#ff5555;font-family:'Cinzel',serif;font-size:.6rem;cursor:pointer;">🗑️ Bets Clear Karo</button>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+function adminForceHTResult(side) {
+  localStorage.setItem('kgf_admin_ht_result', JSON.stringify({ side, time: Date.now() }));
+  localStorage.setItem('kgf_live_bets_ht', '[]');
+  saveToCloud(); // Cloud pe save — user devices pe mil jaayega
+  showToast('✅ HED & TELL result set: ' + (side==='hed'?'👑 HED':'✖ TELL'), 'win');
+  renderLiveBets(document.getElementById('adm-content'));
+}
+
+function adminForceClockResult(num) {
+  localStorage.setItem('kgf_admin_clock_result', JSON.stringify({ num, time: Date.now() }));
+  localStorage.setItem('kgf_live_bets_clock', '[]');
+  saveToCloud(); // Cloud pe save — user devices pe mil jaayega
+  showToast('✅ Clock result set: Number ' + num, 'win');
+  renderLiveBets(document.getElementById('adm-content'));
+}
+
+function adminClearHTBets() {
+  localStorage.setItem('kgf_live_bets_ht', '[]');
+  renderLiveBets(document.getElementById('adm-content'));
+}
+
+function adminClearClockBets() {
+  localStorage.setItem('kgf_live_bets_clock', '[]');
+  renderLiveBets(document.getElementById('adm-content'));
+}
+
+
+// ========== AUTO MODE ==========
+let autoModeActive = false;
+let autoModeInterval = null;
+
+function toggleAutoMode() {
+  autoModeActive = !autoModeActive;
+  const btn = document.getElementById('auto-mode-btn');
+  if(autoModeActive) {
+    btn.className = 'auto-mode-btn auto-on';
+    btn.textContent = '🤖 AUTO MODE ON — Chal Raha Hai...';
+    showToast('🤖 AUTO MODE ON! Kam pese wali side haar rahi hai.', 'win');
+    startAutoMode();
+  } else {
+    btn.className = 'auto-mode-btn auto-off';
+    btn.textContent = '🤖 AUTO MODE OFF — Click to Start';
+    showToast('❌ AUTO MODE OFF', 'lose');
+    stopAutoMode();
+  }
+}
+
+function startAutoMode() {
+  stopAutoMode();
+  // Har 20 second mein check karo (round ke saath sync)
+  autoModeInterval = setInterval(() => {
+    if(!autoModeActive) return;
+    runAutoResult();
+  }, 1000); // Har second check karo timing ke liye
+}
+
+function stopAutoMode() {
+  if(autoModeInterval) { clearInterval(autoModeInterval); autoModeInterval = null; }
+}
+
+let autoLastRound = -1;
+
+function runAutoResult() {
+  // Round timing check — same as index.html
+  const ROUND_TOTAL = 20;
+  const BET_SECONDS = 8;
+  const elapsed = Math.floor(Date.now() / 1000) % ROUND_TOTAL;
+  const currentRound = Math.floor(Date.now() / 1000 / ROUND_TOTAL);
+  
+  // Sirf result phase mein (elapsed >= BET_SECONDS) aur ek baar per round
+  if(elapsed < BET_SECONDS) return;
+  if(currentRound === autoLastRound) return;
+  autoLastRound = currentRound;
+
+  // HED TELL auto result
+  try {
+    const htBets = JSON.parse(localStorage.getItem('kgf_live_bets_ht') || '[]');
+    if(htBets.length > 0) {
+      const hedTotal = htBets.filter(b=>b.side==='hed').reduce((s,b)=>s+b.amount,0);
+      const telTotal = htBets.filter(b=>b.side==='tel').reduce((s,b)=>s+b.amount,0);
+      // Jo side pe KAM pesa — wahi jite (matlab zyada wali haar jaaye)
+      // Agar hed zyada hai to tell result do (tell jeetega — kam pesa tha)
+      // Wait — admin chahta hai ki zyada wali haare, isliye:
+      // Agar HED pe zyada hai → TELL result (HED wale haarte hain)
+      // Agar TELL pe zyada hai → HED result (TELL wale haarte hain)
+      let resultSide;
+      if(hedTotal >= telTotal) {
+        resultSide = 'tel'; // HED zyada tha — TELL jeeta
+      } else {
+        resultSide = 'hed'; // TELL zyada tha — HED jeeta
+      }
+      localStorage.setItem('kgf_admin_ht_result', JSON.stringify({ side: resultSide, time: Date.now() }));
+      localStorage.setItem('kgf_live_bets_ht', '[]');
+      saveToCloud();
+      showToast(`🤖 AUTO: HED=${hedTotal} TELL=${telTotal} → ${resultSide.toUpperCase()} jeeta!`, 'win');
+    }
+  } catch(e){}
+
+  // CLOCK SPIN auto result
+  try {
+    const clockBets = JSON.parse(localStorage.getItem('kgf_live_bets_clock') || '[]');
+    if(clockBets.length > 0) {
+      // Number-wise totals
+      const numTotals = {};
+      for(let i=1;i<=12;i++) numTotals[i] = 0;
+      clockBets.forEach(b => { numTotals[b.num] = (numTotals[b.num]||0) + b.amount; });
+      // Sabse KAM pesa wala number result mein aayega (ya zero wala)
+      let minNum = 1, minAmt = Infinity;
+      for(let i=1;i<=12;i++) {
+        if(numTotals[i] < minAmt) { minAmt = numTotals[i]; minNum = i; }
+      }
+      // Agar koi number zero pe hai toh woh prefer karo
+      const zeroNums = Object.keys(numTotals).filter(k=>numTotals[k]===0);
+      if(zeroNums.length > 0) {
+        minNum = parseInt(zeroNums[Math.floor(Math.random()*zeroNums.length)]);
+      }
+      localStorage.setItem('kgf_admin_clock_result', JSON.stringify({ num: minNum, time: Date.now() }));
+      localStorage.setItem('kgf_live_bets_clock', '[]');
+      saveToCloud();
+      showToast(`🤖 AUTO Clock: ${minNum} number result (${minAmt} coins tha)`, 'win');
+    }
+  } catch(e){}
+
+  // Live tab refresh
+  if(adminCurrentTab === 'livebets') {
+    setTimeout(() => renderLiveBets(document.getElementById('adm-content')), 500);
+  }
+}
+
+// ========== TOAST ==========
+let tTimer;
+function showToast(msg, type){
+  const t = document.getElementById('toast');
+  t.className = 'toast show '+(type==='win'?'win-t':'lose-t');
+  t.textContent = msg;
+  clearTimeout(tTimer);
+  tTimer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+// ========== ENTER KEY ==========
+document.getElementById('adm-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') adminLogin(); });
+
+// ========== PARTICLES ==========
+(function(){
+  const c = document.getElementById('particles');
+  for(let i=0;i<12;i++){
+    const s = document.createElement('div');
+    s.className = 'spark';
+    s.style.cssText = `left:${Math.random()*100}%;animation-duration:${5+Math.random()*6}s;animation-delay:${Math.random()*5}s;`;
+    c.appendChild(s);
+  }
+})();
+
+// ========== PWA SETUP (Admin Panel) ==========
+let deferredInstallPrompt = null;
+
+function generateAdminIcon(){
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(256,256,0,256,256,256);
+  grad.addColorStop(0,'#1a0030'); grad.addColorStop(1,'#080410');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); ctx.roundRect(0,0,512,512,80); ctx.fill();
+  ctx.strokeStyle = '#9c27b0'; ctx.lineWidth = 18;
+  ctx.beginPath(); ctx.roundRect(9,9,494,494,76); ctx.stroke();
+  ctx.font = '260px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🛡️', 256, 230);
+  ctx.font = 'bold 88px serif'; ctx.fillStyle = '#ce93d8';
+  ctx.fillText('ADMIN', 256, 400);
+  return canvas.toDataURL('image/png');
+}
+
+(function setupAdminPWA(){
+  const iconDataURL = generateAdminIcon();
+  const appleIcon = document.createElement('link');
+  appleIcon.rel = 'apple-touch-icon'; appleIcon.href = iconDataURL;
+  document.head.appendChild(appleIcon);
+  const manifest = {
+    name: "KGF Admin", short_name: "KGF 🛡️",
+    description: "KGF Casino Admin Panel",
+    start_url: "./admin.html", display: "standalone",
+    orientation: "portrait", background_color: "#080410", theme_color: "#9c27b0",
+    icons: [
+      { src: iconDataURL, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+      { src: iconDataURL, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
+  const link = document.createElement('link'); link.rel = 'manifest';
+  link.href = URL.createObjectURL(blob); document.head.appendChild(link);
+  const swCode = `self.addEventListener('install',e=>{self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(clients.claim());});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});`;
+  try {
+    const swBlob = new Blob([swCode],{type:'application/javascript'});
+    navigator.serviceWorker?.register(URL.createObjectURL(swBlob));
+  } catch(e){}
+})();
+
+// ========== AUTO REFRESH — LIVE BETS CLOUD SE HAR 5 SEC ==========
+setInterval(async () => {
+  if(!adminLoggedIn) return;
+  try {
+    const res = await fetch(fbUrl('/kgf.json'));
+    if(!res.ok) return;
+    const d = await res.json();
+    if(!d) return;
+    if(d.live_ht) localStorage.setItem('kgf_live_bets_ht', JSON.stringify(d.live_ht));
+    if(d.live_clock) localStorage.setItem('kgf_live_bets_clock', JSON.stringify(d.live_clock));
+    if(d.users) { Object.assign(USERS, d.users); localStorage.setItem('kgf_users', JSON.stringify(d.users)); }
+    if(d.wd) { withdrawRequests = d.wd; }
+    // Refresh count & time
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+    const el = document.getElementById('last-refresh-time');
+    if(el) el.textContent = timeStr;
+    // Total coins bar
+    const htBets = JSON.parse(localStorage.getItem('kgf_live_bets_ht')||'[]');
+    const clBets = JSON.parse(localStorage.getItem('kgf_live_bets_clock')||'[]');
+    const totalCoins = [...htBets,...clBets].reduce((s,b)=>s+(b.amount||0),0);
+    const bar = document.getElementById('live-total-coins-bar');
+    if(bar) bar.textContent = '🪙 Total: ' + totalCoins + ' coins | ' + (htBets.length+clBets.length) + ' bets';
+    // Agar live tab open hai to render karo
+    const content = document.getElementById('adm-content');
+    if(adminCurrentTab === 'livebets' && content) renderLiveBets(content);
+    // Pending badge update
+    updatePendingBadge();
+  } catch(e){}
+}, 5000);
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); deferredInstallPrompt = e;
+  document.getElementById('adm-install-bar').style.display = 'block';
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('adm-install-bar').style.display = 'none';
+  showToast('🎉 Admin app install ho gayi!', 'win');
+});
+
+function installAdminPWA(){
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(r=>{
+      if(r.outcome==='accepted') showToast('🎉 Admin app install ho rahi hai!','win');
+      deferredInstallPrompt = null;
+      document.getElementById('adm-install-bar').style.display = 'none';
+    });
+  } else {
+    showToast('📲 Browser mein: Menu → Add to Home Screen dabao!','win');
+  }
+}
+</script>
+
+<!-- ADMIN PWA INSTALL BAR -->
+<div class="adm-install-bar" id="adm-install-bar">
+  <button class="adm-install-btn" onclick="installAdminPWA()">📲 Install</button>
+</div>
+
+</body>
+</html>

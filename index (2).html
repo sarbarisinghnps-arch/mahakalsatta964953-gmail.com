@@ -1,0 +1,1992 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>KGF Casino 🎰</title>
+<meta name="application-name" content="KGF Casino"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="KGF Casino"/>
+<meta name="theme-color" content="#c8960c"/>
+<meta name="description" content="KGF Casino — Jeet Ka Raaj!"/>
+<link id="pwa-manifest" rel="manifest" href=""/>
+<link id="apple-icon" rel="apple-touch-icon" href=""/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+// ========== SECURITY UTILS ==========
+// SHA-256 hashing using Web Crypto API (btoa se zyada secure)
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Password hash banao: SHA-256(phone + ':' + pass + ':KGF_SALT_2024')
+async function hashPassword(phone, pass) {
+  return await sha256(phone + ':' + pass + ':KGF_SALT_2024');
+}
+
+// XSS se bachao — user data HTML mein safe tarike se insert karo
+function escHtml(str) {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
+// Rate limiting — brute force attacks rokne ke liye
+const _rateLimits = {};
+function checkRateLimit(key, maxAttempts, windowMs) {
+  const now = Date.now();
+  if (!_rateLimits[key]) _rateLimits[key] = { attempts: 0, windowStart: now };
+  const rl = _rateLimits[key];
+  if (now - rl.windowStart > windowMs) { rl.attempts = 0; rl.windowStart = now; }
+  rl.attempts++;
+  return rl.attempts <= maxAttempts;
+}
+function resetRateLimit(key) { delete _rateLimits[key]; }
+
+// ===== LIVE PLAYER COUNTER =====
+// Live player count - actual registered users se calculate hoga
+function _updateLive(){
+  try {
+    const users = JSON.parse(localStorage.getItem('kgf_users') || '{}');
+    const count = Object.keys(users).length;
+    document.querySelectorAll('.live-player-count').forEach(el => el.textContent = count.toLocaleString('en-IN'));
+  } catch(e){}
+}
+setInterval(_updateLive, 5000);
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+:root{--gold:#c8960c;--gold2:#ffd700;--dark:#0a0500;--red:#8b0000;--blue:#1565c0;--blue2:#42a5f5;}
+/* LIVE ROUND BADGE */
+.live-badge{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,#b71c1c,#e53935);border-radius:20px;padding:3px 10px;font-size:.6rem;font-family:'Cinzel',serif;color:#fff;letter-spacing:2px;animation:livePulse 1.2s infinite;}
+@keyframes livePulse{0%,100%{box-shadow:0 0 6px rgba(229,57,53,.6);}50%{box-shadow:0 0 14px rgba(229,57,53,1);}}
+.live-dot{width:7px;height:7px;background:#fff;border-radius:50%;animation:dotBlink 1s infinite;}
+@keyframes dotBlink{0%,100%{opacity:1;}50%{opacity:.3;}}
+/* BETTING OPEN indicator */
+.bet-open-bar{background:linear-gradient(90deg,#1a3a1a,#0d5c0d);border:1px solid #4caf50;border-radius:8px;padding:4px 10px;text-align:center;font-size:.63rem;color:#81c784;letter-spacing:1px;margin-top:4px;}
+.bet-closed-bar{background:linear-gradient(90deg,#3a1a1a,#5c0d0d);border:1px solid #f44336;border-radius:8px;padding:4px 10px;text-align:center;font-size:.63rem;color:#ef9a9a;letter-spacing:1px;margin-top:4px;}
+body{background:var(--dark);color:var(--gold2);font-family:'Cinzel',serif;height:100dvh;overflow:hidden;max-width:480px;margin:0 auto;overscroll-behavior-y:none;touch-action:pan-x pan-y;}
+
+/* PARTICLES */
+#particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+.spark{position:absolute;width:3px;height:3px;border-radius:50%;background:var(--gold2);animation:sparkFloat linear infinite;opacity:0;}
+@keyframes sparkFloat{0%{opacity:0;transform:translateY(100vh);}15%{opacity:1;}85%{opacity:.4;}100%{opacity:0;transform:translateY(-5vh);}}
+
+/* SCREENS */
+.screen{display:none;width:100%;height:100dvh;}
+.screen.active{display:flex;flex-direction:column;}
+.screen.active{display:flex;flex-direction:column;}
+
+/* LOGIN SCREEN */
+#login-screen{background:var(--dark);align-items:center;justify-content:center;padding:30px 20px;}
+.login-box{width:100%;max-width:380px;background:linear-gradient(145deg,#1a0d00,#0f0600);border:2px solid var(--gold);border-radius:20px;padding:30px 24px;text-align:center;}
+.login-logo{font-family:'Cinzel Decorative',serif;font-size:1.6rem;color:var(--gold2);text-shadow:0 0 18px var(--gold);margin-bottom:6px;}
+.login-sub{font-size:.65rem;color:var(--gold);letter-spacing:3px;margin-bottom:24px;}
+.login-field{width:100%;background:rgba(0,0,0,.5);border:1px solid rgba(200,150,12,.4);border-radius:10px;padding:13px 14px;color:var(--gold2);font-family:'Cinzel',serif;font-size:.9rem;margin-bottom:13px;outline:none;}
+.login-field:focus{border-color:var(--gold2);box-shadow:0 0 10px rgba(255,215,0,.2);}
+.login-field::placeholder{color:rgba(200,150,12,.5);}
+.login-btn{width:100%;padding:14px;background:linear-gradient(135deg,#c8960c,#ffd700);border:none;border-radius:12px;font-family:'Cinzel Decorative',serif;font-size:.9rem;color:#0a0500;cursor:pointer;margin-top:6px;transition:transform .12s;box-shadow:0 4px 15px rgba(200,150,12,.5);}
+.login-btn:active{transform:scale(.95);}
+.login-err{color:#ff5555;font-size:.72rem;margin-top:10px;min-height:20px;}
+.login-crown{font-size:3rem;display:block;margin-bottom:12px;animation:crownPulse 2s infinite;}
+
+/* HOME */
+#home{background:var(--dark);}
+.topbar{background:linear-gradient(90deg,#0f0600,#1a0d00,#0f0600);border-bottom:2px solid var(--gold);padding:5px 10px;display:flex;flex-direction:column;gap:4px;}
+.app-logo{font-family:'Cinzel Decorative',serif;font-size:.95rem;color:var(--gold2);text-shadow:0 0 8px var(--gold);flex-shrink:0;}
+.topbar-row1{display:flex;justify-content:space-between;align-items:center;width:100%;}.topbar-right{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
+.wallet-chip{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.4);border:1px solid var(--gold);border-radius:20px;padding:5px 10px;font-size:.75rem;color:var(--gold2);letter-spacing:1px;cursor:pointer;}
+.wallet-chip:active{transform:scale(.95);}
+.logout-btn{background:linear-gradient(135deg,#b71c1c,#e53935);border:none;color:#fff;font-size:.6rem;padding:6px 11px;border-radius:8px;cursor:pointer;font-family:'Cinzel',serif;box-shadow:0 2px 8px rgba(183,28,28,.5);letter-spacing:1px;}
+.content{flex:1;padding:8px 12px;overflow:hidden;display:flex;flex-direction:column;gap:8px;}
+.home-banner{background:linear-gradient(135deg,#1a0800,#2d1400);border:1px solid var(--gold);border-radius:12px;padding:10px;text-align:center;position:relative;overflow:hidden;}
+.home-banner::after{content:'';position:absolute;top:-60%;left:-60%;width:220%;height:220%;background:radial-gradient(ellipse,rgba(200,150,12,.08),transparent 55%);animation:rotBg 10s linear infinite;pointer-events:none;}
+@keyframes rotBg{from{transform:rotate(0);}to{transform:rotate(360deg);}}
+.hb-title{font-family:'Cinzel Decorative',serif;font-size:1.2rem;color:var(--gold2);text-shadow:0 0 18px var(--gold);position:relative;z-index:1;}
+.hb-crown{font-size:1.6rem;display:block;margin-bottom:2px;position:relative;z-index:1;animation:crownPulse 2s infinite;}
+@keyframes crownPulse{0%,100%{filter:drop-shadow(0 0 10px gold);}50%{filter:drop-shadow(0 0 30px gold);transform:scale(1.1);}}
+.hb-sub{color:var(--gold);font-size:.6rem;letter-spacing:3px;margin-top:2px;position:relative;z-index:1;}
+.hb-user{color:var(--gold2);font-size:.68rem;margin-top:4px;position:relative;z-index:1;}
+.games-title{font-size:.65rem;color:var(--gold);letter-spacing:3px;margin-bottom:10px;text-align:center;}
+.games-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.game-card{background:linear-gradient(145deg,#1a0d00,#0f0600);border:2px solid var(--gold);border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;transition:transform .15s,box-shadow .15s;position:relative;overflow:hidden;}
+.game-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(200,150,12,.12),transparent 60%);}
+.game-card:active{transform:scale(.93);}
+.game-card:hover{box-shadow:0 0 22px rgba(200,150,12,.4);}
+.gi{font-size:2rem;display:block;margin-bottom:5px;position:relative;z-index:1;}
+.gn{font-family:'Cinzel Decorative',serif;font-size:.68rem;color:var(--gold2);margin-bottom:2px;position:relative;z-index:1;}
+.gw{font-size:.55rem;color:#aaa;letter-spacing:1px;position:relative;z-index:1;}
+
+/* HOME BOTTOM BUTTONS */
+.home-bottom{padding:8px 14px 10px;display:flex;gap:9px;border-top:1px solid rgba(200,150,12,.2);}
+.home-action-btn{flex:1;padding:9px 6px;border:none;border-radius:12px;font-family:'Cinzel Decorative',serif;font-size:.65rem;cursor:pointer;transition:transform .12s;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px;}
+.home-action-btn:active{transform:scale(.93);}
+.btn-whatsapp{background:linear-gradient(135deg,#128C7E,#25D366);color:#fff;box-shadow:0 3px 12px rgba(37,211,102,.4);}
+.btn-download{background:linear-gradient(135deg,#c8960c,#ffd700);color:#0a0500;box-shadow:0 3px 12px rgba(200,150,12,.4);}
+.btn-share{background:linear-gradient(135deg,#2d1600,#1a0d00);border:1px solid var(--gold);color:var(--gold2);}
+
+/* ADD COINS MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:linear-gradient(145deg,#1a0d00,#0f0600);border:2px solid var(--gold);border-radius:20px;padding:24px;width:100%;max-width:360px;text-align:center;}
+.modal-title{font-family:'Cinzel Decorative',serif;color:var(--gold2);font-size:1rem;margin-bottom:5px;}
+.modal-sub{font-size:.68rem;color:var(--gold);letter-spacing:1px;margin-bottom:18px;}
+.coin-packs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.cp{background:rgba(0,0,0,.4);border:1px solid rgba(200,150,12,.35);border-radius:12px;padding:14px 8px;cursor:pointer;transition:all .15s;}
+.cp:active{transform:scale(.9);}
+.cp-coins{font-family:'Cinzel Decorative',serif;font-size:.9rem;color:var(--gold2);}
+.cp-label{font-size:.62rem;color:var(--gold);margin-top:4px;}
+.modal-wa-btn{display:block;width:100%;padding:15px;background:linear-gradient(135deg,#128C7E,#25D366);border:none;border-radius:14px;font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#fff;cursor:pointer;margin-bottom:12px;box-shadow:0 4px 15px rgba(37,211,102,.4);transition:transform .12s;}
+.modal-wa-btn:active{transform:scale(.95);}
+.modal-close{background:none;border:1px solid rgba(200,150,12,.4);color:var(--gold);padding:10px 24px;border-radius:10px;font-family:'Cinzel',serif;font-size:.8rem;cursor:pointer;}
+.qr-wrap{background:#fff;border-radius:12px;padding:12px;margin:10px auto;display:none;text-align:center;width:fit-content;}
+.qr-wrap img{width:160px;height:160px;display:block;}
+.qr-amount-lbl{font-size:.7rem;color:#333;margin-top:6px;font-family:'Cinzel',serif;font-weight:bold;}
+
+/* GAME SCREEN */
+#game-screen{background:var(--dark);flex-direction:column;height:100dvh;padding-bottom:65px;box-sizing:border-box;overflow:hidden;touch-action:pan-y;overscroll-behavior:none;}
+.game-header{background:linear-gradient(90deg,#0f0600,#1a0d00,#0f0600);border-bottom:1px solid var(--gold);padding:6px 10px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.back-btn{background:none;border:1px solid var(--gold);color:var(--gold2);width:36px;height:36px;border-radius:50%;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.gtitle{font-family:'Cinzel Decorative',serif;color:var(--gold2);font-size:1rem;flex:1;text-align:center;text-shadow:0 0 8px var(--gold);}
+.game-wallet{font-size:.7rem;color:var(--gold2);flex-shrink:0;background:rgba(0,0,0,.4);border:1px solid rgba(200,150,12,.4);border-radius:12px;padding:4px 8px;cursor:pointer;}
+.game-area{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:6px 12px 4px;}
+.game-controls{flex-shrink:0;padding:4px 10px 5px;background:linear-gradient(0deg,#060300,#0f0800);border-top:1px solid rgba(200,150,12,.25);}
+.bet-label{font-size:.56rem;color:var(--gold);letter-spacing:1px;text-align:center;margin-bottom:2px;}
+.bet-chips{display:flex;gap:4px;justify-content:center;margin-bottom:3px;}
+.bchip{background:radial-gradient(circle,#2d1600,#1a0d00);border:2px solid var(--gold);color:var(--gold2);font-family:'Cinzel',serif;font-size:.68rem;padding:4px 5px;border-radius:25px;cursor:pointer;transition:all .12s;min-width:34px;text-align:center;}
+.bchip:active{transform:scale(.88);}
+.bchip.sel{background:radial-gradient(circle,#ffd700,#c8960c);color:#0a0500;box-shadow:0 0 14px var(--gold);}
+.bet-info{display:flex;justify-content:space-between;align-items:center;padding:0 4px;margin-bottom:3px;}
+.cur-bet{font-family:'Cinzel Decorative',serif;color:var(--gold2);font-size:.9rem;}
+.win-info{font-size:.62rem;color:#aaa;}
+.action-row{display:flex;gap:8px;justify-content:center;margin-bottom:4px;}
+.act-btn{flex:1;max-width:180px;padding:12px 5px;border:none;border-radius:12px;font-family:'Cinzel Decorative',serif;font-size:.82rem;cursor:pointer;transition:transform .12s;text-align:center;}
+.act-btn:active{transform:scale(.91);}
+.btn-play{background:linear-gradient(135deg,#c8960c,#ffd700);color:#0a0500;box-shadow:0 4px 15px rgba(200,150,12,.5);}
+.btn-disabled{background:#2a1500;color:#666;box-shadow:none;cursor:not-allowed;}
+
+/* HED & TELL */
+.ht-scene{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;}
+.coin-outer{perspective:400px;width:110px;height:110px;display:flex;align-items:center;justify-content:center;}
+.coin3d{width:110px;height:110px;position:relative;transform-style:preserve-3d;transform-origin:center center;}
+@keyframes coinAutoSpin{0%{transform:rotateY(0deg);}100%{transform:rotateY(360deg);}}
+@keyframes coinResultSpin{0%{transform:rotateY(0deg);}70%{transform:rotateY(1440deg);}100%{transform:rotateY(var(--end-rot,1800deg));}}
+.coin3d.auto-spin{animation:coinAutoSpin 2.5s linear infinite;}
+.coin3d.result-spin{animation:coinResultSpin 1.8s cubic-bezier(.3,0,.2,1) forwards;}
+.cface{position:absolute;width:100%;height:100%;border-radius:50%;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:5px solid var(--gold2);box-shadow:0 0 25px var(--gold),inset 0 2px 8px rgba(255,255,255,.2);}
+.cface-icon{font-size:2.2rem;line-height:1;}
+.cface-text{font-family:'Cinzel Decorative',serif;font-size:1rem;font-weight:900;letter-spacing:2px;line-height:1;}
+.c-h{background:radial-gradient(circle at 38% 35%,#ffe87a,#c8960c,#7a5a00);}
+.c-t{background:radial-gradient(circle at 38% 35%,#c8960c,#7a5a00,#3d2000);transform:rotateY(180deg);}
+.timer-ring-wrap{position:relative;width:110px;height:110px;}
+.timer-svg{position:absolute;top:0;left:0;width:110px;height:110px;transform:rotate(-90deg);}
+.timer-circle{fill:none;stroke:rgba(255,215,0,.15);stroke-width:5;}
+.timer-progress{fill:none;stroke:var(--gold2);stroke-width:5;stroke-linecap:round;stroke-dasharray:376;stroke-dashoffset:0;transition:stroke-dashoffset 0.1s linear;}
+.timer-txt{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Cinzel Decorative',serif;font-size:2rem;color:var(--gold2);text-shadow:0 0 10px var(--gold);z-index:2;}
+.ht-choice{display:flex;gap:12px;justify-content:center;width:100%;}
+.hbtn{flex:1;max-width:140px;background:linear-gradient(135deg,#1a0d00,#2d1600);border:2px solid var(--gold);color:var(--gold2);font-family:'Cinzel Decorative',serif;font-size:.82rem;padding:9px;border-radius:12px;cursor:pointer;transition:all .15s;text-align:center;}
+.hbtn.sel{background:linear-gradient(135deg,#c8960c,#ffd700);color:#0a0500;box-shadow:0 0 18px var(--gold);}
+/* ht-result removed */
+.status-bar{background:rgba(0,0,0,.4);border:1px solid rgba(200,150,12,.3);border-radius:8px;padding:5px 10px;text-align:center;font-size:.65rem;color:var(--gold);letter-spacing:1px;}
+
+/* ANDAR BAHAR */
+.ab-scene{width:100%;max-width:420px;}
+.ab-felt{background:radial-gradient(ellipse at 50% 40%,#0d3d1a,#041008);border:3px solid #8b6914;border-radius:18px;padding:12px;}
+.ab-joker-row{text-align:center;margin-bottom:10px;}
+.ab-j-lbl{font-size:.62rem;color:var(--gold);letter-spacing:2px;margin-bottom:4px;}
+.ab-jcard{display:inline-flex;flex-direction:column;width:52px;height:72px;background:white;border-radius:8px;border:2px solid var(--gold);align-items:center;justify-content:center;font-size:.95rem;box-shadow:0 4px 12px rgba(0,0,0,.5);color:#333;}
+.ab-jcard.red{color:#cc0000;}
+.ab-zones{display:flex;gap:10px;}
+.ab-zone{flex:1;border:2px solid rgba(200,150,12,.35);border-radius:10px;padding:8px;text-align:center;cursor:pointer;transition:all .18s;min-height:90px;}
+.ab-zone.az{border-color:#2196F3;}
+.ab-zone.bz{border-color:#f44336;}
+.ab-zone.sel.az{background:rgba(33,150,243,.18);box-shadow:0 0 15px rgba(33,150,243,.4);}
+.ab-zone.sel.bz{background:rgba(244,67,54,.18);box-shadow:0 0 15px rgba(244,67,54,.4);}
+.ab-zname{font-family:'Cinzel Decorative',serif;font-size:.82rem;margin-bottom:5px;}
+.az .ab-zname{color:#64b5f6;}
+.bz .ab-zname{color:#ef9a9a;}
+.ab-cards{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;}
+.ab-sc{width:26px;height:36px;border-radius:4px;background:white;border:1px solid #ccc;display:flex;align-items:center;justify-content:center;font-size:.6rem;color:#333;animation:cardDeal .2s ease-out;}
+@keyframes cardDeal{from{transform:scale(0) rotate(-20deg);opacity:0;}to{transform:scale(1) rotate(0);opacity:1;}}
+.ab-sc.red{color:#cc0000;}
+
+/* CLOCK SPIN GAME */
+.clock-scene{display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;}
+.clock-wrap{position:relative;width:190px;height:190px;margin:0 auto;}
+.clock-face{width:190px;height:190px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#2a1800,#0f0600);border:5px solid var(--gold);box-shadow:0 0 20px rgba(200,150,12,.4),inset 0 0 15px rgba(0,0,0,.5);position:relative;overflow:hidden;}
+.clock-face::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 38% 32%,rgba(255,215,0,.07),transparent 60%);}
+.clock-num{position:absolute;font-family:'Cinzel Decorative',serif;font-size:.72rem;color:var(--gold2);font-weight:700;transform:translate(-50%,-50%);text-shadow:0 0 6px var(--gold);cursor:pointer;transition:all .15s;padding:4px;border-radius:6px;}
+.clock-num.selected-num{background:rgba(255,215,0,.35);box-shadow:0 0 16px rgba(255,215,0,.7);color:#fff;}
+.clock-num .mult{display:block;font-size:.55rem;color:var(--gold);margin-top:1px;}
+.clock-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:14px;height:14px;background:var(--gold2);border-radius:50%;z-index:10;box-shadow:0 0 8px var(--gold);}
+.clock-hand{position:absolute;bottom:50%;left:50%;transform-origin:bottom center;border-radius:4px 4px 0 0;transition:none;}
+.hand-hour{width:5px;height:54px;background:linear-gradient(to top,var(--gold),var(--gold2));margin-left:-2px;z-index:6;}
+.hand-minute{width:3px;height:72px;background:linear-gradient(to top,#aaa,#fff);margin-left:-1px;z-index:7;}
+.hand-second{width:2px;height:76px;background:#ff4444;margin-left:-1px;z-index:8;}
+@keyframes clockSpin{from{transform:rotate(var(--start-deg));}to{transform:rotate(var(--end-deg));}}
+.spinning{animation:clockSpin var(--spin-dur,2s) cubic-bezier(.2,0,.1,1) forwards;}
+.clock-result-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Cinzel Decorative',serif;font-size:1.8rem;color:var(--gold2);text-shadow:0 0 20px gold;opacity:0;z-index:20;pointer-events:none;transition:opacity .3s;}
+.clock-result-num.show{opacity:1;}
+.mult-table{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;width:100%;}
+.mt-item{background:rgba(0,0,0,.4);border:1px solid rgba(200,150,12,.3);border-radius:6px;padding:4px 2px;text-align:center;cursor:pointer;transition:all .15s;}
+.mt-item:active{transform:scale(.9);}
+.mt-item.selected-mt{background:rgba(200,150,12,.3);border-color:var(--gold2);box-shadow:0 0 10px rgba(255,215,0,.4);}
+.mt-item.highlight{background:rgba(200,150,12,.25);border-color:var(--gold2);box-shadow:0 0 10px rgba(255,215,0,.4);}
+.mt-num{font-family:'Cinzel Decorative',serif;font-size:.7rem;color:var(--gold2);}
+.mt-mult{font-size:.65rem;color:var(--gold);}
+
+/* TOAST */
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-15px);z-index:999;background:linear-gradient(135deg,#1a0d00,#2d1600);border:2px solid var(--gold);border-radius:14px;padding:13px 22px;text-align:center;font-family:'Cinzel Decorative',serif;font-size:.95rem;min-width:220px;opacity:0;transition:all .32s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.win-t{border-color:var(--gold2);color:var(--gold2);box-shadow:0 0 30px rgba(255,215,0,.5);}
+.toast.lose-t{border-color:#ff5555;color:#ff5555;box-shadow:0 0 30px rgba(255,50,50,.4);}
+@keyframes winBurst{0%{transform:scale(1);}30%{transform:scale(1.4);}60%{transform:scale(.9);}100%{transform:scale(1);}}
+.win-burst{animation:winBurst .5s ease-out;}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:linear-gradient(0deg,#0a0500,#1a0d00);border-top:2px solid var(--gold);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom);}
+.bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 5px 6px;cursor:pointer;transition:all .15s;gap:2px;}
+.bnav-item:active{transform:scale(.9);}
+.bnav-icon{font-size:1.2rem;}
+.bnav-label{font-family:'Cinzel',serif;font-size:.48rem;color:rgba(200,150,12,.6);letter-spacing:1px;}
+.bnav-item.active .bnav-label{color:var(--gold2);}
+.bnav-item.active .bnav-icon{filter:drop-shadow(0 0 6px gold);}
+
+/* WALLET HISTORY SCREEN */
+#wallet-screen{background:var(--dark);padding-bottom:70px;}
+.wh-header{background:linear-gradient(90deg,#0f0600,#1a0d00,#0f0600);border-bottom:2px solid var(--gold);padding:14px;text-align:center;}
+.wh-title{font-family:'Cinzel Decorative',serif;color:var(--gold2);font-size:1.1rem;}
+.wh-balance{background:linear-gradient(135deg,#1a0800,#2d1400);border:1px solid var(--gold);border-radius:16px;margin:14px;padding:20px;text-align:center;}
+.wh-bal-label{font-size:.62rem;color:var(--gold);letter-spacing:3px;margin-bottom:6px;}
+.wh-bal-amount{font-family:'Cinzel Decorative',serif;font-size:2rem;color:var(--gold2);text-shadow:0 0 15px gold;}
+.wh-add-btn{display:block;width:calc(100% - 28px);margin:0 14px 14px;padding:13px;background:linear-gradient(135deg,#128C7E,#25D366);border:none;border-radius:12px;font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#fff;cursor:pointer;}
+.wh-history{margin:0 14px;padding-bottom:10px;}
+.wh-hist-title{font-size:.62rem;color:var(--gold);letter-spacing:3px;margin-bottom:10px;}
+.wh-item{background:rgba(0,0,0,.4);border:1px solid rgba(200,150,12,.25);border-radius:10px;padding:11px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+.wh-item-left{text-align:left;}
+.wh-item-game{font-size:.72rem;color:var(--gold2);}
+.wh-item-time{font-size:.58rem;color:#666;margin-top:2px;}
+.wh-item-amt{font-family:'Cinzel Decorative',serif;font-size:.9rem;}
+.wh-item-amt.win{color:#00ff88;}
+.wh-item-amt.lose{color:#ff5555;}
+.wh-empty{text-align:center;color:#555;font-size:.75rem;padding:30px;letter-spacing:2px;}
+
+/* WITHDRAW BUTTON */
+.btn-withdraw{background:linear-gradient(135deg,#7b1fa2,#ce93d8);color:#fff;box-shadow:0 3px 12px rgba(123,31,162,.4);}
+
+/* WITHDRAW MODAL */
+.wd-field{width:100%;background:rgba(0,0,0,.5);border:1px solid rgba(200,150,12,.4);border-radius:10px;padding:12px 14px;color:var(--gold2);font-family:'Cinzel',serif;font-size:.85rem;margin-bottom:11px;outline:none;}
+.wd-field:focus{border-color:var(--gold2);}
+.wd-field::placeholder{color:rgba(200,150,12,.45);}
+
+/* ADMIN PANEL */
+#admin-screen{background:#080410;min-height:100vh;position:relative;z-index:1;}
+#admin-login{flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;}
+.adm-box{width:100%;max-width:380px;background:linear-gradient(145deg,#1a0030,#0d0020);border:2px solid #9c27b0;border-radius:20px;padding:28px 22px;text-align:center;}
+.adm-logo{font-family:'Cinzel Decorative',serif;font-size:1.4rem;color:#ce93d8;text-shadow:0 0 14px #9c27b0;margin-bottom:5px;}
+.adm-sub{font-size:.62rem;color:#9c27b0;letter-spacing:3px;margin-bottom:22px;}
+.adm-field{width:100%;background:rgba(0,0,0,.5);border:1px solid rgba(156,39,176,.4);border-radius:10px;padding:12px 14px;color:#ce93d8;font-family:'Cinzel',serif;font-size:.85rem;margin-bottom:11px;outline:none;}
+.adm-field:focus{border-color:#ce93d8;}
+.adm-field::placeholder{color:rgba(156,39,176,.5);}
+.adm-btn{width:100%;padding:13px;background:linear-gradient(135deg,#7b1fa2,#ce93d8);border:none;border-radius:12px;font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#fff;cursor:pointer;margin-top:6px;box-shadow:0 4px 15px rgba(123,31,162,.5);}
+.adm-btn:active{transform:scale(.95);}
+.adm-err{color:#ff5555;font-size:.72rem;margin-top:8px;min-height:18px;}
+#admin-panel{display:none;flex-direction:column;padding-bottom:20px;}
+.adm-header{background:linear-gradient(90deg,#0d0020,#1a0030,#0d0020);border-bottom:2px solid #9c27b0;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;}
+.adm-htitle{font-family:'Cinzel Decorative',serif;color:#ce93d8;font-size:1rem;}
+.adm-logout-btn{background:none;border:1px solid rgba(156,39,176,.5);color:#9c27b0;font-size:.6rem;padding:5px 10px;border-radius:8px;cursor:pointer;font-family:'Cinzel',serif;}
+.adm-tabs{display:flex;background:#0d0020;border-bottom:1px solid rgba(156,39,176,.3);}
+.adm-tab{flex:1;padding:10px 5px;text-align:center;cursor:pointer;font-family:'Cinzel',serif;font-size:.58rem;color:rgba(156,39,176,.6);letter-spacing:1px;border-bottom:2px solid transparent;transition:all .15s;}
+.adm-tab.active{color:#ce93d8;border-bottom-color:#9c27b0;}
+.adm-content{padding:14px;}
+.adm-section-title{font-size:.6rem;color:#9c27b0;letter-spacing:3px;margin-bottom:12px;}
+.adm-card{background:linear-gradient(145deg,#1a0030,#0d0020);border:1px solid rgba(156,39,176,.35);border-radius:12px;padding:14px;margin-bottom:10px;}
+.adm-card-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.adm-card-key{font-size:.62rem;color:rgba(156,39,176,.7);letter-spacing:1px;}
+.adm-card-val{font-size:.75rem;color:#ce93d8;font-family:'Cinzel',serif;}
+.adm-req-btns{display:flex;gap:7px;margin-top:10px;}
+.adm-approve-btn{flex:1;padding:9px;background:linear-gradient(135deg,#1b5e20,#43a047);border:none;border-radius:9px;color:#fff;font-family:'Cinzel',serif;font-size:.65rem;cursor:pointer;}
+.adm-reject-btn{flex:1;padding:9px;background:linear-gradient(135deg,#b71c1c,#e53935);border:none;border-radius:9px;color:#fff;font-family:'Cinzel',serif;font-size:.65rem;cursor:pointer;}
+.adm-approve-btn:active,.adm-reject-btn:active{transform:scale(.93);}
+.adm-empty{text-align:center;color:#555;font-size:.7rem;padding:30px;letter-spacing:2px;}
+.adm-add-row{display:flex;gap:8px;align-items:center;margin-top:8px;}
+.adm-add-input{flex:1;background:rgba(0,0,0,.5);border:1px solid rgba(156,39,176,.4);border-radius:9px;padding:9px 11px;color:#ce93d8;font-family:'Cinzel',serif;font-size:.8rem;outline:none;}
+.adm-add-btn{padding:9px 14px;background:linear-gradient(135deg,#7b1fa2,#ce93d8);border:none;border-radius:9px;color:#fff;font-family:'Cinzel',serif;font-size:.65rem;cursor:pointer;white-space:nowrap;}
+.adm-stat-chip{background:rgba(156,39,176,.12);border:1px solid rgba(156,39,176,.3);border-radius:10px;padding:12px;text-align:center;margin-bottom:10px;}
+.adm-stat-num{font-family:'Cinzel Decorative',serif;font-size:1.4rem;color:#ce93d8;}
+.adm-stat-lbl{font-size:.58rem;color:#9c27b0;letter-spacing:2px;margin-top:3px;}
+.adm-wa-row{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
+.adm-badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:.58rem;font-family:'Cinzel',serif;letter-spacing:1px;}
+.adm-badge.pending{background:rgba(255,193,7,.15);color:#ffc107;border:1px solid rgba(255,193,7,.4);}
+.adm-badge.approved{background:rgba(67,160,71,.15);color:#43a047;border:1px solid rgba(67,160,71,.4);}
+.adm-badge.rejected{background:rgba(229,57,53,.15);color:#e53935;border:1px solid rgba(229,57,53,.4);}
+
+/* PROFILE SCREEN */
+#profile-screen{background:var(--dark);padding-bottom:70px;}
+.prof-header{background:linear-gradient(90deg,#0f0600,#1a0d00,#0f0600);border-bottom:2px solid var(--gold);padding:14px;text-align:center;}
+.prof-title{font-family:'Cinzel Decorative',serif;color:var(--gold2);font-size:1.1rem;}
+.prof-avatar{text-align:center;padding:24px 14px 10px;}
+.prof-crown{font-size:4rem;display:block;animation:crownPulse 2s infinite;}
+.prof-name{font-family:'Cinzel Decorative',serif;font-size:1.3rem;color:var(--gold2);margin-top:8px;text-shadow:0 0 10px gold;}
+.prof-card{background:linear-gradient(145deg,#1a0d00,#0f0600);border:1px solid rgba(200,150,12,.4);border-radius:14px;margin:10px 14px;padding:16px;}
+.prof-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(200,150,12,.1);}
+.prof-row:last-child{border-bottom:none;}
+.prof-key{font-size:.65rem;color:var(--gold);letter-spacing:2px;}
+.prof-val{font-size:.8rem;color:var(--gold2);font-family:'Cinzel',serif;}
+.prof-logout-btn{display:block;width:calc(100% - 28px);margin:14px;padding:13px;background:linear-gradient(135deg,#8b0000,#cc0000);border:none;border-radius:12px;font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#fff;cursor:pointer;}
+
+/* PWA INSTALL BUTTON */
+.pwa-install-bar{position:fixed;bottom:72px;right:10px;z-index:300;display:block !important;}
+.pwa-install-btn{padding:7px 13px;background:linear-gradient(135deg,#c8960c,#ffd700);border:none;border-radius:20px;font-family:'Cinzel Decorative',serif;font-size:.55rem;color:#0a0500;cursor:pointer;box-shadow:0 3px 10px rgba(200,150,12,.5);}
+.pwa-install-btn:active{transform:scale(.9);}
+
+</style>
+</head>
+<body>
+<div id="particles"></div>
+<div class="toast" id="toast"></div>
+
+<!-- WITHDRAW MODAL -->
+<div class="modal-overlay" id="withdraw-modal">
+  <div class="modal-box">
+    <div class="modal-title">💸 COINS NIKALO</div>
+    <div class="modal-sub">AMOUNT AUR UPI NUMBER BHARO</div>
+    <input class="wd-field" type="number" id="wd-amount" placeholder="💰 Kitne Coins Nikalne Hain?" min="100"/>
+    <input class="wd-field" type="text" id="wd-upi" placeholder="📲 UPI Number / ID" autocomplete="off"/>
+    <div style="font-size:.65rem;color:rgba(200,150,12,.55);margin-bottom:14px;letter-spacing:1px;">Min: 100 Coins | Aapke paas: <span id="wd-bal-show">0</span> Coins</div>
+    <button class="modal-wa-btn" style="background:linear-gradient(135deg,#7b1fa2,#ce93d8);" onclick="submitWithdraw()">💸 Request Bhejo</button>
+    <button class="modal-close" onclick="closeModal('withdraw-modal')">BAND KARO</button>
+    <div id="wd-err" style="color:#ff5555;font-size:.7rem;margin-top:8px;min-height:18px;"></div>
+  </div>
+</div>
+
+<!-- ADD COINS MODAL -->
+<div class="modal-overlay" id="add-coins-modal">
+  <div class="modal-box">
+    <div class="modal-title">💰 COINS ADD KARO</div>
+    <div class="modal-sub">AMOUNT CHUNO — QR SE PAY KARO</div>
+    <div class="coin-packs">
+      <div class="cp" onclick="selectAmount(100)"><div class="cp-coins">💵 ₹100</div><div class="cp-label">100 Coins</div></div>
+      <div class="cp" onclick="selectAmount(200)"><div class="cp-coins">💵 ₹200</div><div class="cp-label">200 Coins</div></div>
+      <div class="cp" onclick="selectAmount(500)"><div class="cp-coins">💵 ₹500</div><div class="cp-label">500 Coins</div></div>
+      <div class="cp" onclick="selectAmount(1000)"><div class="cp-coins">💵 ₹1000</div><div class="cp-label">1000 Coins</div></div>
+      <div class="cp" onclick="selectAmount(2000)" style="grid-column:span 2;"><div class="cp-coins">💵 ₹2000</div><div class="cp-label">2000 Coins</div></div>
+    </div>
+    <div class="qr-wrap" id="qr-wrap">
+      <div id="qr-canvas"></div>
+      <div class="qr-amount-lbl" id="qr-amount-lbl"></div>
+      <div style="font-size:.6rem;color:#555;margin-top:4px;">UPI se scan karke pay karo</div>
+    </div>
+    <button class="modal-wa-btn" id="wa-confirm-btn" style="display:none;" onclick="waConfirmPayment()">✅ Payment Ki — WhatsApp Pe Batao</button>
+    <button class="modal-wa-btn" onclick="waContact(0)">💬 WhatsApp Pe Contact Karo</button>
+    <button class="modal-close" onclick="closeModal('add-coins-modal')">BAND KARO</button>
+  </div>
+</div>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login-screen" class="screen active">
+  <div class="login-box">
+    <span class="login-crown">👑</span>
+    <div class="login-logo">KGF CASINO</div>
+    <div class="login-sub">JEET KA RAAJ</div>
+    <input class="login-field" type="text" id="login-phone" placeholder="📱 Phone Number" maxlength="15" autocomplete="off"/>
+    <input class="login-field" type="text" id="login-name" placeholder="👤 Apna Naam" maxlength="30" autocomplete="off" style="display:none;"/>
+    <input class="login-field" type="password" id="login-pass" placeholder="🔒 Password" maxlength="20" autocomplete="off"/>
+    <button class="login-btn" onclick="doLogin()">🎰 LOGIN &amp; KHELO</button>
+    <button class="login-btn" style="margin-top:8px;background:linear-gradient(135deg,#2d1600,#1a0d00);border:2px solid var(--gold);color:var(--gold2);box-shadow:none;font-size:.85rem;" onclick="showRegister()" id="reg-btn">✨ NAYI ID BANAO</button>
+    <div class="login-err" id="login-err" style="margin-top:12px;font-size:.8rem;min-height:24px;"></div>
+  </div>
+</div>
+
+<!-- ===== HOME ===== -->
+<div id="home" class="screen">
+  <div class="topbar">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+      <div class="app-logo">KGF 🎰</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div class="wallet-chip" onclick="openModal('add-coins-modal')">💰 <span id="wallet-coins">100</span></div>
+        <button class="logout-btn" onclick="doLogout()">🚪 EXIT</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;justify-content:center;width:100%;">
+      <button class="home-action-btn btn-whatsapp" style="padding:7px 12px;font-size:.62rem;border-radius:10px;flex:1;" onclick="openModal('add-coins-modal')">➕ Add Money</button>
+      <button class="home-action-btn btn-withdraw" style="padding:7px 12px;font-size:.62rem;border-radius:10px;flex:1;" onclick="openWithdraw()">💸 Withdrawal</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="home-banner">
+      <span class="hb-crown">👑</span>
+      <div class="hb-title">KGF CASINO</div>
+      <div class="hb-sub">JEET KA RAAJ</div>
+      <div class="hb-user" id="home-username"></div>
+      <div style="margin-top:6px;display:inline-flex;align-items:center;gap:8px;background:rgba(0,70,0,.4);border:1px solid rgba(76,175,80,.6);border-radius:20px;padding:4px 14px;box-shadow:0 0 14px rgba(76,175,80,.3);">
+        <span style="width:8px;height:8px;border-radius:50%;background:#4caf50;display:inline-block;animation:livePulse 1.2s infinite;box-shadow:0 0 6px #4caf50;"></span>
+        <span style="font-size:.65rem;color:#81c784;font-family:'Cinzel',serif;letter-spacing:1px;font-weight:bold;"><span class="live-player-count">52,341</span> PLAYERS ONLINE</span>
+      </div>
+    </div>
+    <div class="games-title" style="margin:0;font-size:.6rem;">GAMES CHOOSE KARO</div>
+    <div class="games-grid">
+      <div class="game-card" onclick="openGame('ht')">
+        <span class="gi">🪙</span>
+        <div class="gn">HED &amp; TELL</div>
+        <div class="gw">COIN FLIP</div>
+      </div>
+      <div class="game-card" onclick="openGame('ab')">
+        <span class="gi">🃏</span>
+        <div class="gn">ANDAR BAHAR</div>
+        <div class="gw">CARD GAME</div>
+      </div>
+      <div class="game-card" onclick="openGame('clock')" style="grid-column:span 2;">
+        <span class="gi">🕐</span>
+        <div class="gn">CLOCK SPIN</div>
+        <div class="gw">GHADI WALA GAME — UP TO 20× WIN!</div>
+      </div>
+    </div>
+  </div>
+  <!-- Download + Share buttons -->
+  <div style="padding:6px 14px 60px;display:flex;gap:9px;">
+    <button class="home-action-btn btn-download" onclick="installPWA()" id="home-install-btn">📲 App Download Karo</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV (shown on home/wallet/profile) -->
+<div class="bottom-nav" id="bottom-nav" style="display:none;">
+  <div class="bnav-item active" id="bnav-home" onclick="switchTab('home')">
+    <span class="bnav-icon">🏠</span>
+    <span class="bnav-label">HOME</span>
+  </div>
+  <div class="bnav-item" id="bnav-wallet" onclick="switchTab('wallet')">
+    <span class="bnav-icon">💰</span>
+    <span class="bnav-label">WALLET</span>
+  </div>
+  <div class="bnav-item" id="bnav-profile" onclick="switchTab('profile')">
+    <span class="bnav-icon">👤</span>
+    <span class="bnav-label">PROFILE</span>
+  </div>
+
+</div>
+
+<!-- ===== WALLET SCREEN ===== -->
+<div id="wallet-screen" class="screen">
+  <div class="wh-header">
+    <div class="wh-title">💰 WALLET</div>
+  </div>
+  <div class="wh-balance">
+    <div class="wh-bal-label">TOTAL COINS</div>
+    <div class="wh-bal-amount" id="wh-coins">0</div>
+  </div>
+  <button class="wh-add-btn" style="background:linear-gradient(135deg,#7b1fa2,#ce93d8);" onclick="openWithdraw()">💸 Coins Nikalo (Withdraw)</button>
+  <div class="wh-history">
+    <div class="wh-hist-title">HISTORY</div>
+    <div id="wh-history-list"></div>
+  </div>
+</div>
+
+<!-- ===== PROFILE SCREEN ===== -->
+<div id="profile-screen" class="screen">
+  <div class="prof-header">
+    <div class="prof-title">👤 PROFILE</div>
+  </div>
+  <div class="prof-avatar">
+    <span class="prof-crown">👑</span>
+    <div class="prof-name" id="prof-name-display">-</div>
+  </div>
+  <div class="prof-card">
+    <div class="prof-row">
+      <span class="prof-key">NAAM</span>
+      <span class="prof-val" id="prof-naam">-</span>
+    </div>
+    <div class="prof-row">
+      <span class="prof-key">PHONE</span>
+      <span class="prof-val" id="prof-phone">-</span>
+    </div>
+    <div class="prof-row">
+      <span class="prof-key">PASSWORD</span>
+      <span class="prof-val" id="prof-pass">****</span>
+    </div>
+    <div class="prof-row">
+      <span class="prof-key">COINS</span>
+      <span class="prof-val" id="prof-coins">-</span>
+    </div>
+    <div class="prof-row">
+      <span class="prof-key">TOTAL GAMES</span>
+      <span class="prof-val" id="prof-games">0</span>
+    </div>
+  </div>
+  <button class="prof-logout-btn" onclick="doLogout()">🚪 LOGOUT</button>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <button class="back-btn" onclick="closeGame()">←</button>
+    <div class="gtitle" id="g-title">GAME</div>
+    <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+      <div class="game-wallet" onclick="openModal('add-coins-modal')">💰 <span id="game-wallet-coins">100</span></div>
+      <button style="background:linear-gradient(135deg,#128C7E,#25D366);border:none;color:#fff;font-size:.6rem;padding:5px 8px;border-radius:8px;cursor:pointer;font-family:'Cinzel',serif;" onclick="openModal('add-coins-modal')">➕ Add Money</button>
+      <button style="background:linear-gradient(135deg,#7b1fa2,#ce93d8);border:none;color:#fff;font-size:.6rem;padding:5px 8px;border-radius:8px;cursor:pointer;font-family:'Cinzel',serif;" onclick="openWithdraw()">💸 Withdrawal</button>
+    </div>
+  </div>
+  <div id="global-player-bar" style="background:rgba(0,50,0,.5);border-bottom:1px solid rgba(76,175,80,.4);padding:3px 14px;display:flex;align-items:center;justify-content:center;gap:8px;">
+    <span style="width:7px;height:7px;border-radius:50%;background:#4caf50;display:inline-block;animation:livePulse 1.2s infinite;box-shadow:0 0 5px #4caf50;flex-shrink:0;"></span>
+    <span style="font-size:.6rem;color:#81c784;font-family:'Cinzel',serif;letter-spacing:1px;font-weight:bold;"><span class="live-player-count">52,341</span> Players Abhi Online Hain</span>
+  </div>
+  <div class="game-area" id="game-area"></div>
+  <div class="game-controls">
+    <div class="action-row" id="game-actions"></div>
+    <div class="bet-label">BET LAGAO — COINS</div>
+    <div class="bet-chips">
+      <div class="bchip sel" onclick="setBet(10)">10</div>
+      <div class="bchip" onclick="setBet(50)">50</div>
+      <div class="bchip" onclick="setBet(100)">100</div>
+      <div class="bchip" onclick="setBet(500)">500</div>
+      <div class="bchip" onclick="setBet(1000)">1000</div>
+      <div class="bchip" onclick="setBet(2000)">2000</div>
+    </div>
+    <div class="bet-info">
+      <div class="cur-bet">💰 Bet: <span id="cur-bet-show">10</span></div>
+      <div class="win-info">Jeet: +<span id="win-show">9</span> | Haar: -<span id="lose-show">10</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== CONFIG ==========
+let WA_NUMBER = localStorage.getItem('kgf_wa_number') || '918679389272';
+const APP_DOWNLOAD_LINK = 'https://wa.me/918679389272?text='+encodeURIComponent('KGF Games app download link chahiye!');
+
+// ========== FIREBASE CONFIG ==========
+const FIREBASE_URL = 'https://kgf-boos-79590-default-rtdb.firebaseio.com';
+// ⚠️ IMPORTANT: Firebase Database Rules must be set to require auth
+// Iske liye Firebase Console mein Realtime Database > Rules mein:
+// { "rules": { ".read": "auth != null", ".write": "auth != null" } }
+// Ya phir FIREBASE_SECRET ko apna Firebase secret se replace karo
+const FIREBASE_SECRET = localStorage.getItem('kgf_fb_secret') || '';
+function fbUrl(path){ return FIREBASE_URL + path + (FIREBASE_SECRET ? '?auth=' + FIREBASE_SECRET : ''); }
+
+// ========== USER DB ==========
+let USERS = {};
+try { USERS = JSON.parse(localStorage.getItem('kgf_users') || '{}'); } catch(e) { USERS = {}; }
+
+// ========== FIREBASE: DATA LOAD ==========
+async function loadFromCloud(){
+  try {
+    const res = await fetch(fbUrl('/kgf.json'));
+    if(!res.ok) return false;
+    const d = await res.json();
+    if(!d) return false;
+    if(d.users) { Object.assign(USERS, d.users); localStorage.setItem('kgf_users', JSON.stringify(USERS)); }
+    if(d.wa) { WA_NUMBER = d.wa; localStorage.setItem('kgf_wa_number', d.wa); }
+    if(d.wd) { withdrawRequests = d.wd; localStorage.setItem('kgf_withdraw_requests', JSON.stringify(d.wd)); }
+    if(d.boosted) localStorage.setItem('kgf_boosted_users', JSON.stringify(d.boosted));
+    if(d.globalBoost) localStorage.setItem('kgf_global_boost', JSON.stringify(d.globalBoost));
+    if(d.upi) localStorage.setItem('kgf_upi_id', d.upi);
+    if(d.live_ht) localStorage.setItem('kgf_live_bets_ht', JSON.stringify(d.live_ht));
+    if(d.live_clock) localStorage.setItem('kgf_live_bets_clock', JSON.stringify(d.live_clock));
+    if(d.admin_ht_result) localStorage.setItem('kgf_admin_ht_result', JSON.stringify(d.admin_ht_result));
+    if(d.admin_clock_result) localStorage.setItem('kgf_admin_clock_result', JSON.stringify(d.admin_clock_result));
+    return true;
+  } catch(e){ return false; }
+}
+
+// ========== FIREBASE: DATA SAVE ==========
+let _saveTimer = null;
+async function saveToCloud(){
+  try {
+    const data = {
+      users: USERS,
+      wa: WA_NUMBER,
+      wd: withdrawRequests,
+      boosted: JSON.parse(localStorage.getItem('kgf_boosted_users')||'{}'),
+      globalBoost: JSON.parse(localStorage.getItem('kgf_global_boost')||'{}'),
+      upi: localStorage.getItem('kgf_upi_id')||'',
+      live_ht: JSON.parse(localStorage.getItem('kgf_live_bets_ht')||'[]'),
+      live_clock: JSON.parse(localStorage.getItem('kgf_live_bets_clock')||'[]'),
+      admin_ht_result: JSON.parse(localStorage.getItem('kgf_admin_ht_result')||'null'),
+      admin_clock_result: JSON.parse(localStorage.getItem('kgf_admin_clock_result')||'null')
+    };
+    await fetch(fbUrl('/kgf.json'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  } catch(e){}
+}
+function saveToCloudDebounced(){
+  if(_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(()=>saveToCloud(), 1500);
+}
+async function initBin(){ /* Firebase mein kuch initialize nahi karna */ }
+
+// ========== SAVE (local turant, cloud background mein) ==========
+function saveData(){
+  // Coins ko USERS object mein sync karo
+  if(currentUser && USERS[currentUser]){
+    // Sanity check: coins kabhi negative nahi honge
+    if(coins < 0) coins = 0;
+    USERS[currentUser].coins = coins;
+  }
+  // Local storage mein turant save — game never blocks
+  try {
+    localStorage.setItem('kgf_users', JSON.stringify(USERS));
+    localStorage.setItem('kgf_withdraw_requests', JSON.stringify(withdrawRequests));
+    localStorage.setItem('kgf_wa_number', WA_NUMBER);
+  } catch(e){}
+  // Cloud mein background mein save (debounced)
+  saveToCloudDebounced();
+}
+
+// ========== STATE ==========
+let currentUser = null;
+let coins = 50;
+let currentGame = '', currentBet = 10, htChoice = '', abChoice = '', gameRunning = false;
+let lastBetTime = 0;
+const MIN_BET_INTERVAL = 3000; // 3 second minimum between bets
+function canPlaceBet(){
+  const now = Date.now();
+  if(now - lastBetTime < MIN_BET_INTERVAL){ showToast('⏳ Thoda ruko...','lose'); return false; }
+  lastBetTime = now;
+  return true;
+}
+let totalGames = 0;
+let walletHistory = [];
+let withdrawRequests = []; 
+try { withdrawRequests = JSON.parse(localStorage.getItem('kgf_withdraw_requests') || '[]'); } catch(e){ withdrawRequests = []; }
+
+// ========== APP START ==========
+(async function initApp(){
+  // Pehle local se fast load karo
+  try {
+    const saved = localStorage.getItem('kgf_session');
+    if(saved && USERS[saved]){
+      currentUser = saved;
+      coins = USERS[saved].coins || 0;
+      walletHistory = USERS[saved].history || [];
+      totalGames = USERS[saved].totalGames || 0;
+      document.getElementById('home-username').textContent = '👤 ' + (USERS[saved].naam || saved);
+      updateWalletDisplay();
+      document.getElementById('bottom-nav').style.display='flex';
+      switchTab('home');
+    }
+  } catch(e){}
+
+  // Background mein cloud se load karo (UI block nahi hogi)
+  await initBin();
+  loadFromCloud().then(()=>{
+    // Cloud data aaya — coins update karo agar admin ne change kiya ho
+    if(currentUser && USERS[currentUser]){
+      coins = USERS[currentUser].coins || coins;
+      walletHistory = USERS[currentUser].history || walletHistory;
+      updateWalletDisplay();
+    }
+  });
+
+  // Har 30 second mein sirf admin settings check karo (game chal raha ho toh skip)
+  setInterval(()=>{
+    if(gameRunning) return; // Game chal raha hai — bilkul mat chhedna
+    loadFromCloud().then(()=>{
+      // Force reload check
+      try {
+        const g = JSON.parse(localStorage.getItem('kgf_global_boost')||'{}');
+        const frFlag = localStorage.getItem('kgf_force_reload');
+        if(g.forceReload && g.forceReload !== frFlag){
+          localStorage.setItem('kgf_force_reload', g.forceReload);
+          showToast('🔄 App update aa raha hai...','win');
+          setTimeout(()=>window.location.reload(true), 2000);
+          return;
+        }
+      } catch(e){}
+      // Coins sync
+      if(currentUser && USERS[currentUser]){
+        const sc = USERS[currentUser].coins;
+        if(sc !== undefined && sc !== coins){ coins = sc; updateWalletDisplay(); }
+      }
+    });
+  }, 30000);
+})();
+
+// ========== LOGIN ==========
+function showRegister(){
+  const nameField = document.getElementById('login-name');
+  const err = document.getElementById('login-err');
+  if(nameField.style.display==='none' || nameField.style.display===''){
+    // Pehli baar: naam field dikhao
+    nameField.style.display='block';
+    err.style.color='var(--gold)';
+    err.textContent='👆 Phone, Naam aur Password bharo, phir dobara dabao';
+  } else {
+    // Doosri baar: register karo
+    doRegister();
+  }
+}
+
+async function doLogin(){
+  document.getElementById('login-name').style.display='none';
+  const phone = document.getElementById('login-phone').value.trim();
+  const pass = document.getElementById('login-pass').value.trim();
+  const err = document.getElementById('login-err');
+  if(!phone){ err.style.color='#ff5555'; err.textContent='❌ Phone number bharo!'; return; }
+  if(!/^[0-9]{10}$/.test(phone)){ err.style.color='#ff5555'; err.textContent='❌ 10 digit ka valid phone number bharo!'; return; }
+  if(!pass){ err.style.color='#ff5555'; err.textContent='❌ Password bharo!'; return; }
+  if(pass.length < 6){ err.style.color='#ff5555'; err.textContent='❌ Password kam se kam 6 characters ka hona chahiye!'; return; }
+
+  // ⚡ Rate Limiting — 5 attempts per 2 minutes per phone number
+  const rlKey = 'login_' + phone;
+  if(!checkRateLimit(rlKey, 5, 2 * 60 * 1000)){
+    err.style.color='#ff5555';
+    err.textContent='⛔ Zyada galat attempts! 2 minute baad try karo.';
+    return;
+  }
+
+  err.style.color='var(--gold)'; err.textContent='⏳ Logging in...';
+  await loadFromCloud();
+
+  if(!USERS[phone]){ err.style.color='#ff5555'; err.textContent='❌ Registered nahi! Pehle NAYI ID BANAO.'; return; }
+
+  // SHA-256 hash se compare karo
+  const inputHash = await hashPassword(phone, pass);
+  const storedPass = USERS[phone].password || '';
+  // Legacy btoa support — purane users ke liye migrate on login
+  const legacyHash = btoa(phone + ':' + pass);
+  const isLegacy = storedPass === legacyHash;
+  const isValid = (storedPass === inputHash) || isLegacy;
+
+  if(!isValid){ err.style.color='#ff5555'; err.textContent='❌ Password galat hai!'; return; }
+
+  // Purane btoa password ko SHA-256 mein upgrade karo (silent migration)
+  if(isLegacy){
+    USERS[phone].password = inputHash;
+    saveData();
+  }
+
+  resetRateLimit(rlKey);
+  err.textContent='';
+  currentUser = phone;
+  coins = USERS[phone].coins;
+  walletHistory = USERS[phone].history || [];
+  totalGames = USERS[phone].totalGames || 0;
+  document.getElementById('home-username').textContent = '👤 ' + escHtml(USERS[phone].naam || phone);
+  updateWalletDisplay();
+  document.getElementById('bottom-nav').style.display='flex';
+  // Session mein sirf phone store karo (already safe — phone validated above)
+  localStorage.setItem('kgf_session', phone);
+  switchTab('home');
+  playSound('win');
+}
+
+async function doRegister(){
+  const phone = document.getElementById('login-phone').value.trim();
+  const naam = document.getElementById('login-name').value.trim();
+  const pass = document.getElementById('login-pass').value.trim();
+  const err = document.getElementById('login-err');
+  if(!phone){ err.style.color='#ff5555'; err.textContent='❌ Phone number bharo!'; return; }
+  if(!/^[0-9]{10}$/.test(phone)){ err.style.color='#ff5555'; err.textContent='❌ 10 digit ka valid phone number bharo!'; return; }
+  if(!naam){ err.style.color='#ff5555'; err.textContent='❌ Apna naam bharo!'; return; }
+  if(naam.length < 2 || naam.length > 30){ err.style.color='#ff5555'; err.textContent='❌ Naam 2-30 characters ka hona chahiye!'; return; }
+  // Naam mein sirf letters, spaces, dots allowed (no HTML/script injection)
+  if(!/^[\w\s.,''\-ÀàÂâÄäÁáÃãÉéÈèÊêËëÍíÌìÎîÏïÓóÒòÔôÖöÚúÙùÛûÜüÝýÑña-zA-Z\u0900-\u097F\u0030-\u0039]+$/.test(naam)){
+    err.style.color='#ff5555'; err.textContent='❌ Naam mein sirf letters aur spaces allowed hain!'; return;
+  }
+  if(!pass){ err.style.color='#ff5555'; err.textContent='❌ Password bharo!'; return; }
+  if(pass.length < 6){ err.style.color='#ff5555'; err.textContent='❌ Password kam se kam 6 characters ka hona chahiye!'; return; }
+
+  err.style.color='var(--gold)'; err.textContent='⏳ Registering...';
+  await initBin();
+  await loadFromCloud();
+
+  if(USERS[phone]){ err.style.color='#ff5555'; err.textContent='❌ Yeh number pehle se registered hai!'; return; }
+
+  // SHA-256 hash se password store karo (btoa nahi)
+  const hashedPass = await hashPassword(phone, pass);
+  USERS[phone] = { password: hashedPass, naam: naam, coins: 50, history: [], totalGames: 0 };
+  err.style.color='#00ff88';
+  err.textContent='✅ ID ban gayi! Ab LOGIN karo.';
+  document.getElementById('login-name').style.display='none';
+  document.getElementById('reg-btn').textContent='✨ NAYI ID BANAO';
+
+  saveData();
+  await saveToCloud();
+
+  alert('✅ ID ban gayi!\nNaam: ' + naam + '\nPhone: ' + phone + '\n\nAb LOGIN & KHELO dabao!');
+}
+
+function doLogout(){
+  if(currentUser){ USERS[currentUser].coins=coins; USERS[currentUser].history=walletHistory; USERS[currentUser].totalGames=totalGames; }
+  currentUser = null; walletHistory = []; totalGames = 0; localStorage.removeItem('kgf_session');
+  document.getElementById('login-phone').value='';
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-name').value='';
+  document.getElementById('login-name').style.display='none';
+  document.getElementById('login-err').textContent='';
+  document.getElementById('bottom-nav').style.display='none';
+  showScreen('login-screen');
+}
+
+// ========== TAB SWITCHING ==========
+
+function renderWalletHistory(){
+  const el=document.getElementById('wh-coins');
+  if(el) el.textContent=coins.toLocaleString();
+  const list=document.getElementById('wh-history-list');
+  if(!list) return;
+  if(walletHistory.length===0){ list.innerHTML='<div class="wh-empty">KOI HISTORY NAHI HAI<br>Khelo aur jito! 🎰</div>'; return; }
+  list.innerHTML=walletHistory.slice().reverse().map(h=>`
+    <div class="wh-item">
+      <div class="wh-item-left">
+        <div class="wh-item-game">${escHtml(h.game)}</div>
+        <div class="wh-item-time">${escHtml(h.time)}</div>
+      </div>
+      <div class="wh-item-amt ${h.amt>0?'win':'lose'}">${h.amt>0?'+':''}${Number(h.amt)||0} 🪙</div>
+    </div>`).join('');
+}
+
+function renderProfile(){
+  if(!currentUser) return;
+  const u=USERS[currentUser];
+  document.getElementById('prof-name-display').textContent = u.naam || currentUser;
+  document.getElementById('prof-naam').textContent = u.naam || '-';
+  document.getElementById('prof-phone').textContent = currentUser;
+  document.getElementById('prof-pass').textContent = '••••••';
+  document.getElementById('prof-coins').textContent = coins.toLocaleString() + ' 🪙';
+  document.getElementById('prof-games').textContent = totalGames;
+}
+
+function addHistory(game, amt){
+  const now=new Date();
+  const time=now.toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'})+' — '+now.toLocaleDateString('hi-IN');
+  walletHistory.push({game, amt, time});
+  if(walletHistory.length>50) walletHistory.shift();
+}
+
+
+document.getElementById('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+// ========== MODAL ==========
+function openModal(id){ document.getElementById(id).classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('show'); }));
+
+// ========== WHATSAPP ==========
+let selectedPayAmount = 0;
+
+function selectAmount(pack){
+  selectedPayAmount = pack;
+  // Highlight selected pack
+  document.querySelectorAll('.cp').forEach(c=>c.style.border='1px solid rgba(200,150,12,.35)');
+
+  // Get UPI from admin settings
+  const upiId = localStorage.getItem('kgf_upi_id') || '';
+  const qrWrap = document.getElementById('qr-wrap');
+  const qrLbl = document.getElementById('qr-amount-lbl');
+  const waBtn = document.getElementById('wa-confirm-btn');
+
+  if(upiId){
+    const upiStr = `upi://pay?pa=${upiId}&pn=KGF%20Casino&am=${pack}&cu=INR&tn=KGF%20Coins`;
+    qrLbl.textContent = `₹${pack} | UPI: ${upiId}`;
+    qrWrap.style.display='block';
+    // Generate QR locally using qrcode.js
+    const qrDiv = document.getElementById('qr-canvas');
+    qrDiv.innerHTML = '';
+    new QRCode(qrDiv, {text: upiStr, width: 180, height: 180, colorDark:'#000', colorLight:'#fff'});
+    waBtn.style.display='block';
+    waBtn.textContent=`✅ ₹${pack} Pay Kar Di — Screenshot WhatsApp Pe Bhejo`;
+  } else {
+    qrWrap.style.display='none';
+    waBtn.style.display='none';
+    showToast('⚠️ Admin ne UPI set nahi kiya abhi!','lose');
+  }
+}
+
+function waConfirmPayment(){
+  const msg = `🎰 *KGF CASINO — PAYMENT DONE*\n\n👤 Phone: ${currentUser||'--'}\n💵 Amount: ₹${selectedPayAmount}\n🪙 Coins: ${selectedPayAmount}\n\n✅ Maine UPI se ₹${selectedPayAmount} pay kar diye. Please coins add karo.`;
+  window.open('https://wa.me/'+WA_NUMBER+'?text='+encodeURIComponent(msg),'_blank');
+  closeModal('add-coins-modal');
+}
+
+function waContact(pack){
+  let msg;
+  if(pack > 0){
+    msg = `🎰 *KGF CASINO — COINS REQUEST*\n\n👤 Phone: ${currentUser||'--'}\n💵 Amount: ₹${pack}\n🪙 Coins: ${pack}\n\n✅ Please add ₹${pack} coins to my account.`;
+  } else {
+    msg = `🎰 *KGF CASINO — COINS ADD*\n\n👤 Phone: ${currentUser||'--'}\n\n💬 Mujhe coins add karne hain. Amount batao.`;
+  }
+  window.open('https://wa.me/'+WA_NUMBER+'?text='+encodeURIComponent(msg),'_blank');
+  closeModal('add-coins-modal');
+}
+
+// ========== DOWNLOAD / SHARE ==========
+function downloadApp(){
+  const url = window.location.href;
+  const isLocal = url.startsWith('about:') || url.startsWith('file://') || url.includes('localhost');
+  if(isLocal){
+    showToast('⚠️ Pehle hosting pe daalo (Netlify), phir share kaam karega!','lose');
+    return;
+  }
+  const cleanUrl = url.split('?')[0].split('#')[0];
+  const txt = '🎰 *KGF CASINO — Jeet ka Raaj!* 👑\n\nHed Tell, Andar Bahar, Clock Spin!\n\n▶️ Abhi khelo (FREE):\n' + cleanUrl + '\n\n🎯 Register karo aur free coins pao!';
+  if(navigator.share){
+    navigator.share({title:'KGF Casino 🎰', text:txt, url:cleanUrl}).catch(()=>{});
+  } else {
+    navigator.clipboard?.writeText(cleanUrl).then(()=>{
+      showToast('🔗 App link copy ho gaya! Share karo!','win');
+    }).catch(()=>{ showToast('🔗 Link: '+cleanUrl,'win'); });
+  }
+}
+
+function shareApp(){
+  const url = window.location.href;
+  const txt = '🎰 KGF Casino — Jeet ka Raaj! 👑\nHed Tell, Andar Bahar, Clock Spin!\nAbhi khelo: '+url;
+  if(navigator.share){
+    navigator.share({title:'KGF Casino',text:txt,url:url}).catch(()=>{});
+  } else {
+    navigator.clipboard?.writeText(txt).then(()=>showToast('🔗 Link copy ho gaya!','win')).catch(()=>showToast('🔗 Link: '+url,'win'));
+  }
+}
+
+// ========== SCREENS ==========
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ========== TAB SWITCHING ==========
+function switchTab(tab){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  ['bnav-home','bnav-wallet','bnav-profile'].forEach(b=>{const el=document.getElementById(b);if(el)el.classList.remove('active');});
+  const ib = document.getElementById('pwa-install-bar');
+  if(tab==='home'){
+    document.getElementById('home').classList.add('active');
+    document.getElementById('bnav-home').classList.add('active');
+    if(ib) ib.style.display='block';
+  } else if(tab==='wallet'){
+    document.getElementById('wallet-screen').classList.add('active');
+    document.getElementById('bnav-wallet').classList.add('active');
+    if(ib) ib.style.display='block';
+    renderWalletHistory();
+  } else if(tab==='profile'){
+    document.getElementById('profile-screen').classList.add('active');
+    document.getElementById('bnav-profile').classList.add('active');
+    if(ib) ib.style.display='block';
+    renderProfile();
+  }
+}
+
+// ========== WALLET ==========
+function updateWalletDisplay(){
+  const v = coins.toLocaleString();
+  const a=document.getElementById('wallet-coins'); if(a) a.textContent=v;
+  const b=document.getElementById('game-wallet-coins'); if(b) b.textContent=v;
+  const c=document.getElementById('wh-coins'); if(c) c.textContent=v;
+  const d=document.getElementById('prof-coins'); if(d) d.textContent=v+' 🪙';
+  const e=document.getElementById('wd-bal-show'); if(e) e.textContent=coins.toLocaleString();
+}
+
+// ========== WITHDRAW ==========
+// withdraw requests already declared above
+
+function openWithdraw(){
+  document.getElementById('wd-amount').value='';
+  document.getElementById('wd-upi').value='';
+  document.getElementById('wd-err').textContent='';
+  document.getElementById('wd-bal-show').textContent=coins.toLocaleString();
+  openModal('withdraw-modal');
+}
+
+function submitWithdraw(){
+  const amount=parseInt(document.getElementById('wd-amount').value)||0;
+  const upi=document.getElementById('wd-upi').value.trim();
+  const errEl=document.getElementById('wd-err');
+  if(amount<100){errEl.textContent='❌ Minimum 100 coins nikalne hain!';return;}
+  if(amount>coins){errEl.textContent='❌ Itne coins nahi hain!';return;}
+  if(!upi){errEl.textContent='❌ UPI number / ID bharo!';return;}
+  // Deduct coins immediately, hold in pending
+  coins=Math.max(0,coins-amount);
+  if(currentUser) USERS[currentUser].coins=coins;
+  addHistory('💸 Withdraw Request', -amount);
+  updateWalletDisplay();
+  const req={
+    id: Date.now(),
+    user: currentUser,
+    naam: currentUser&&USERS[currentUser]?USERS[currentUser].naam||currentUser:currentUser,
+    amount, upi,
+    time: new Date().toLocaleString('hi-IN'),
+    status:'pending'
+  };
+  withdrawRequests.push(req);
+  errEl.style.color='#00ff88';
+  errEl.textContent='✅ Request bhej di! Admin approve karega.';
+  saveData();
+  setTimeout(()=>closeModal('withdraw-modal'),1800);
+  showToast('💸 Withdraw request bhej di!','win');
+}
+
+// ========== BET ==========
+function setBet(amt){
+  if(amt>coins){ showToast('❌ Coins kam hain!','lose'); return; }
+  currentBet=amt;
+  document.getElementById('cur-bet-show').textContent=amt;
+  document.getElementById('win-show').textContent=amt;
+  document.getElementById('lose-show').textContent=amt;
+  document.querySelectorAll('.bchip').forEach(c=>c.classList.toggle('sel',parseInt(c.textContent)===amt));
+}
+
+function openGame(game){
+  currentGame=game; gameRunning=false; htChoice=''; abChoice='';
+  setBet(10);
+  if(game==='ht'){ document.getElementById('g-title').innerHTML='🪙 HED & TELL &nbsp;<span class="live-badge"><span class="live-dot"></span>LIVE</span>'; buildHedTell(); }
+  else if(game==='clock'){ document.getElementById('g-title').innerHTML='🕐 CLOCK SPIN &nbsp;<span class="live-badge"><span class="live-dot"></span>LIVE</span>'; buildClockSpin(); }
+  else { document.getElementById('g-title').textContent='🃏 ANDAR BAHAR'; buildAndarBahar(); }
+  // Game mein install button hide karo
+  const ib = document.getElementById('pwa-install-bar');
+  if(ib) ib.style.display='none';
+  showScreen('game-screen');
+}
+function closeGame(){ stopHTTimer(); stopHTAutoCycle(); stopHTClockTick(); stopClockAutoCycle(); switchTab('home'); }
+
+// ========== WIN LOGIC ==========
+function getWinRate(){
+  try {
+    // Admin ne "Agla Game Jitao" dabaya hai?
+    const nextWin = JSON.parse(localStorage.getItem('kgf_next_win') || '{}');
+    if(currentUser && nextWin[currentUser]){
+      // Ek baar use ho, phir hata do
+      delete nextWin[currentUser];
+      localStorage.setItem('kgf_next_win', JSON.stringify(nextWin));
+      return 1.0; // 100% win
+    }
+    // 80% boost active hai?
+    const boosted = JSON.parse(localStorage.getItem('kgf_boosted_users') || '{}');
+    if(currentUser && boosted[currentUser] && boosted[currentUser].active){
+      return boosted[currentUser].rate || 0.80;
+    }
+  } catch(e){}
+  // Global 70% boost active hai? (admin ne sabke liye on kiya)
+  try {
+    const globalBoost = JSON.parse(localStorage.getItem('kgf_global_boost') || '{}');
+    if(globalBoost.active) return globalBoost.rate || 0.70;
+  } catch(e){}
+  return 0.50; // Default win rate 50%
+}
+function shouldWin(){
+  return Math.random() < getWinRate();
+}
+
+function processResult(win, resultLabel, resElId){
+  const profit=currentBet;
+  totalGames++;
+  if(win){
+    coins+=profit;
+    if(currentUser) USERS[currentUser].coins=coins;
+    addHistory('🪙 '+resultLabel, +profit);
+    showToast('🏆 JEET! +'+profit+' coins','win');
+    playSound('win');
+    const stEl=document.getElementById('ht-status');
+    if(stEl) stEl.textContent='🏆 '+resultLabel+' — JEET! +'+profit+' coins';
+  } else {
+    coins=Math.max(0,coins-currentBet);
+    if(currentUser) USERS[currentUser].coins=coins;
+    addHistory('🪙 '+resultLabel, -currentBet);
+    showToast('💀 HAAR! -'+currentBet+' coins','lose');
+    playSound('lose');
+    const stEl=document.getElementById('ht-status');
+    if(stEl) stEl.textContent='💀 '+resultLabel+' — Haar! -'+currentBet+' coins';
+  }
+  updateWalletDisplay();
+  saveData();
+}
+
+
+// Admin result check karo — cloud se
+function checkAdminHTResult() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('kgf_admin_ht_result') || 'null');
+    if(!saved) return null;
+    // 30 second se purana result ignore karo
+    if(Date.now() - saved.time > 30000) { localStorage.removeItem('kgf_admin_ht_result'); return null; }
+    return saved.side;
+  } catch(e){ return null; }
+}
+
+function checkAdminClockResult() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('kgf_admin_clock_result') || 'null');
+    if(!saved) return null;
+    if(Date.now() - saved.time > 30000) { localStorage.removeItem('kgf_admin_clock_result'); return null; }
+    return saved.num;
+  } catch(e){ return null; }
+}
+
+// ========== GLOBAL SHARED RESULT SYSTEM ==========
+// Har 20 second mein ek nayi round hoti hai — sab players ka ek hi result
+// Time-based seed use karta hai taaki sab ek hi result dekhein
+const ROUND_TOTAL = 20;   // Total round duration (seconds)
+const BET_SECONDS = 8;    // Bet lagane ka time
+
+function getGlobalRoundSeed(){
+  // Epoch seconds ko ROUND_TOTAL se divide karo — har sab ka same seed hoga
+  return Math.floor(Date.now() / 1000 / ROUND_TOTAL);
+}
+function seededRandom(seed){
+  // Simple deterministic random from seed
+  let x = Math.sin(seed + 42) * 10000;
+  return x - Math.floor(x);
+}
+function getGlobalResult(){
+  // Is round ka result — sab players ke liye same
+  const seed = getGlobalRoundSeed();
+  return seededRandom(seed);
+}
+function getRoundPhase(){
+  // 0 to BET_SECONDS = betting phase; rest = result phase
+  const elapsed = (Math.floor(Date.now() / 1000)) % ROUND_TOTAL;
+  return {
+    elapsed,
+    isBetting: elapsed < BET_SECONDS,
+    timeLeft: elapsed < BET_SECONDS ? (BET_SECONDS - elapsed) : (ROUND_TOTAL - elapsed)
+  };
+}
+
+// ========== HED TELL REAL CLOCK HANDS ==========
+let htClockInterval = null;
+function stopHTClockTick(){ if(htClockInterval){ clearInterval(htClockInterval); htClockInterval=null; } }
+function startHTClockTick(){
+  stopHTClockTick();
+  function updateHands(){
+    const now = new Date();
+    const s = now.getSeconds() + now.getMilliseconds()/1000;
+    const m = now.getMinutes() + s/60;
+    const h = (now.getHours()%12) + m/60;
+    const secDeg = s * 6;
+    const minDeg = m * 6;
+    const hourDeg = h * 30;
+    const secEl = document.getElementById('ht-hand-second');
+    const minEl = document.getElementById('ht-hand-minute');
+    const hourEl = document.getElementById('ht-hand-hour');
+    if(!secEl) { stopHTClockTick(); return; }
+    secEl.style.transform = `rotate(${secDeg}deg)`;
+    minEl.style.transform = `rotate(${minDeg}deg)`;
+    hourEl.style.transform = `rotate(${hourDeg}deg)`;
+  }
+  updateHands();
+  htClockInterval = setInterval(updateHands, 100);
+}
+
+// ========== HED & TELL ==========
+let htTimerInterval=null, htTimerCount=BET_SECONDS, htBettingOpen=false;
+let htAutoCycleInterval=null;
+function stopHTTimer(){ if(htTimerInterval){clearInterval(htTimerInterval);htTimerInterval=null;} htBettingOpen=false; }
+function stopHTAutoCycle(){ if(htAutoCycleInterval){clearInterval(htAutoCycleInterval);htAutoCycleInterval=null;} }
+
+function buildHedTell(){
+  stopHTTimer(); stopHTAutoCycle(); stopHTClockTick();
+  document.getElementById('game-area').innerHTML=`
+    <div class="ht-scene">
+      <div style="position:relative;width:170px;height:170px;margin:0 auto;">
+        <svg style="position:absolute;top:0;left:0;width:170px;height:170px;transform:rotate(-90deg);">
+          <circle fill="none" stroke="rgba(255,215,0,.15)" stroke-width="5" cx="85" cy="85" r="80"/>
+          <circle id="timer-prog" fill="none" stroke="var(--gold2)" stroke-width="5" stroke-linecap="round" cx="85" cy="85" r="80" stroke-dasharray="503" stroke-dashoffset="0" style="transition:stroke-dashoffset 0.1s linear;"/>
+        </svg>
+        <div class="coin-outer" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);">
+          <div class="coin3d auto-spin" id="coin3d">
+            <div class="cface c-h"><span class="cface-icon">👑</span><span class="cface-text" style="color:#0a0500;">HED</span></div>
+            <div class="cface c-t"><span class="cface-icon">✖</span><span class="cface-text" style="color:#ffd700;">TELL</span></div>
+          </div>
+        </div>
+        <div id="timer-num" style="position:absolute;top:4px;left:50%;transform:translateX(-50%);font-family:'Cinzel Decorative',serif;font-size:1.1rem;color:var(--gold2);text-shadow:0 0 10px var(--gold);z-index:10;">8</div>
+      </div>
+      <div class="ht-choice">
+        <button class="hbtn" id="btn-hed" onclick="htSelect('hed')">👑 HED</button>
+        <button class="hbtn" id="btn-tel" onclick="htSelect('tel')">✖ TELL</button>
+      </div>
+      <div class="status-bar" id="ht-status">🎲 HED ya TELL chuno — Auto bet lagegi!</div>
+      <div id="bet-status-bar" class="bet-open-bar">🟢 BETTING OPEN — Jaldi chuno!</div>
+    </div>`;
+  document.getElementById('game-actions').innerHTML=`<div style="text-align:center;font-size:.65rem;color:var(--gold);letter-spacing:2px;padding:8px;">⚡ AUTO ROUND — Bas chuno aur wait karo</div>`;
+  startHTAutoCycle();
+}
+
+function htSelect(ch){
+  const phase = getRoundPhase();
+  if(!phase.isBetting){
+    showToast('⏳ Abhi betting band hai! Agla round wait karo.','lose'); return;
+  }
+  htChoice=ch;
+  document.getElementById('btn-hed').classList.toggle('sel',ch==='hed');
+  document.getElementById('btn-tel').classList.toggle('sel',ch==='tel');
+  playSound('click');
+  showToast(`✅ ${ch==='hed'?'👑 HED':'✖ TELL'} select hua — Result aane wala hai!`,'win');
+  // Admin ke liye bet save karo
+  try {
+    const bets = JSON.parse(localStorage.getItem('kgf_live_bets_ht')||'[]');
+    const existing = bets.findIndex(b=>b.user===currentUser);
+    const entry = {user:currentUser, naam:currentUser&&USERS[currentUser]?USERS[currentUser].naam||currentUser:currentUser, side:ch, amount:currentBet, time:new Date().toLocaleTimeString()};
+    if(existing>=0) bets[existing]=entry; else bets.push(entry);
+    localStorage.setItem('kgf_live_bets_ht', JSON.stringify(bets));
+    saveToCloud(); // Turant cloud pe save — admin ko dikh jaayega
+  } catch(e){}
+}
+
+let htLastRoundSeed = -1;
+
+function startHTAutoCycle(){
+  stopHTAutoCycle();
+  const circumference = 503; // 2 * pi * 80
+
+  function tick(){
+    const phase = getRoundPhase();
+    const numEl = document.getElementById('timer-num');
+    const progEl = document.getElementById('timer-prog');
+    const statusEl = document.getElementById('ht-status');
+    if(!numEl) return; // Game screen closed
+
+    if(phase.isBetting){
+      // BETTING PHASE
+      const t = phase.timeLeft;
+      if(numEl) { numEl.textContent = t+'s'; numEl.style.display='block'; numEl.style.color=t<=3?'#ff7043':t<=5?'#ffa726':'var(--gold2)'; numEl.style.textShadow=t<=3?'0 0 12px #f44336':'0 0 10px var(--gold)'; }
+      if(progEl){ progEl.style.strokeDashoffset=circumference*(1-t/BET_SECONDS); progEl.style.stroke=t<=3?'#f44336':t<=5?'#ffa726':'var(--gold2)'; }
+      if(statusEl) statusEl.textContent = `🎯 BET LAGAO — ${t}s bache!`;
+      if(t<=3) playSound('tick_fast');
+      else if(t===BET_SECONDS) playSound('tick');
+      htBettingOpen = true;
+      gameRunning = false;
+      const bbar=document.getElementById('bet-status-bar');
+      if(bbar){bbar.className='bet-open-bar';bbar.textContent='🟢 BETTING OPEN — Jaldi chuno!';}
+    } else {
+      // RESULT PHASE — check if new round
+      const seed = getGlobalRoundSeed();
+      htBettingOpen = false;
+      const t = phase.timeLeft;
+      if(numEl) { numEl.style.display='none'; }
+      if(progEl) progEl.style.strokeDashoffset = circumference;
+      const bbar=document.getElementById('bet-status-bar');
+      if(bbar){bbar.className='bet-closed-bar';bbar.textContent='🔴 BETTING BAND — Result aa raha hai...';}
+
+      if(seed !== htLastRoundSeed){
+        htLastRoundSeed = seed;
+        // Trigger spin and show result (only once per round)
+        doHTSpinGlobal();
+      } else {
+        if(statusEl && !gameRunning) statusEl.textContent = `⏳ Agla round: ${t} second...`;
+      }
+    }
+  }
+
+  // Align to second boundary
+  const msToNextSec = 1000 - (Date.now() % 1000);
+  setTimeout(()=>{
+    tick();
+    htAutoCycleInterval = setInterval(tick, 1000);
+  }, msToNextSec);
+}
+
+function doHTSpinGlobal(){
+  if(gameRunning) return;
+  gameRunning = true;
+  const coin = document.getElementById('coin3d');
+  const statusEl = document.getElementById('ht-status');
+
+  // Global result — same for all players this round
+  const globalRand = getGlobalResult();
+  // "hed" if rand < 0.5, "tell" otherwise
+  const globalResultSide = globalRand < 0.5 ? 'hed' : 'tel';
+
+  // Player ka result: kya unka choice match karta hai?
+  let win = false;
+  if(htChoice){
+    // Admin ne result set kiya hai? Cloud se check karo
+    const adminHTResult = checkAdminHTResult();
+    let resultSide;
+    if(adminHTResult) {
+      // Admin ne manually result set kiya
+      resultSide = adminHTResult;
+      win = (htChoice === adminHTResult);
+      localStorage.removeItem('kgf_admin_ht_result');
+    } else {
+      // shouldWin() se decide karo
+      win = shouldWin();
+      resultSide = win ? htChoice : (htChoice==='hed'?'tel':'hed');
+    }
+    const base = 1440;
+    const endRot = resultSide==='hed' ? (base+360) : (base+540);
+    if(coin){ coin.style.setProperty('--end-rot', endRot+'deg'); coin.className='coin3d result-spin'; }
+    playSound('coin_flip');
+    if(statusEl) statusEl.textContent='🪙 Coin ghoom raha hai...';
+    setTimeout(()=>{
+      gameRunning=false;
+      processResult(win, resultSide==='hed'?'👑 HED':'✖ TELL', null);
+      setTimeout(()=>{
+        const c=document.getElementById('coin3d');
+        if(c) c.className='coin3d auto-spin';
+        htChoice='';
+        document.getElementById('btn-hed')?.classList.remove('sel');
+        document.getElementById('btn-tel')?.classList.remove('sel');
+      },2000);
+    },1900);
+  } else {
+    // No bet — coin spin karo aur global result clearly dikhao
+    const base = 1440;
+    const endRot = globalResultSide==='hed' ? (base+360) : (base+540);
+    if(coin){ coin.style.setProperty('--end-rot', endRot+'deg'); coin.className='coin3d result-spin'; }
+    playSound('coin_flip');
+    if(statusEl) statusEl.textContent='🪙 Coin ghoom raha hai...';
+    setTimeout(()=>{
+      gameRunning=false;
+      const stEl=document.getElementById('ht-status');
+      if(globalResultSide==='hed'){
+        if(stEl) stEl.textContent='👑 Is round mein HED aaya!';
+      } else {
+        if(stEl) stEl.textContent='✖ Is round mein TELL aaya!';
+      }
+      setTimeout(()=>{
+        const c=document.getElementById('coin3d');
+        if(c) c.className='coin3d auto-spin';
+        if(stEl) stEl.textContent='🎲 HED ya TELL chuno — Auto bet lagegi!';
+      },3000);
+    },1900);
+  }
+}
+
+// ========== ANDAR BAHAR ==========
+const SUITS=['♠','♥','♦','♣'],RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'],RED=['♥','♦'];
+function randCard(){ return {rank:RANKS[Math.floor(Math.random()*13)],suit:SUITS[Math.floor(Math.random()*4)]}; }
+let jokerCard=null;
+
+function buildAndarBahar(){
+  jokerCard=randCard();
+  document.getElementById('game-area').innerHTML=`
+    <div class="ab-scene">
+      <div class="ab-felt">
+        <div class="ab-joker-row">
+          <div class="ab-j-lbl">JOKER CARD</div>
+          <div class="ab-jcard ${RED.includes(jokerCard.suit)?'red':''}" id="ab-joker">
+            <span style="font-size:.9rem;font-weight:900;">${jokerCard.rank}</span>
+            <span style="font-size:1.1rem;">${jokerCard.suit}</span>
+          </div>
+        </div>
+        <div class="ab-zones">
+          <div class="ab-zone az" id="az" onclick="abSelect('andar')">
+            <div class="ab-zname">ANDAR</div>
+            <div class="ab-cards" id="andar-cards"></div>
+          </div>
+          <div class="ab-zone bz" id="bz" onclick="abSelect('bahar')">
+            <div class="ab-zname">BAHAR</div>
+            <div class="ab-cards" id="bahar-cards"></div>
+          </div>
+        </div>
+      </div>
+      <div class="status-bar" id="ab-status" style="margin-top:10px;width:100%;">🎲 Andar ya Bahar chuno!</div>
+      <button onclick="playAB()" style="margin-top:12px;width:92%;padding:14px;background:linear-gradient(135deg,#c8960c,#ffd700);border:none;border-radius:14px;font-family:'Cinzel Decorative',serif;font-size:1rem;color:#0a0500;cursor:pointer;box-shadow:0 4px 15px rgba(200,150,12,.5);">🎲 KHELO</button>
+    </div>`;
+  document.getElementById('game-actions').innerHTML=``;
+}
+
+function abSelect(ch){
+  abChoice=ch;
+  document.getElementById('az').classList.toggle('sel',ch==='andar');
+  document.getElementById('bz').classList.toggle('sel',ch==='bahar');
+  playSound('click');
+}
+
+function playAB(){
+  if(gameRunning) return;
+  if(!abChoice){ showToast('Andar ya Bahar chuno!','lose'); return; }
+  if(currentBet>coins){ showToast('❌ Coins kam hain!','lose'); return; }
+  gameRunning=true;
+  document.getElementById('andar-cards').innerHTML='';
+  document.getElementById('bahar-cards').innerHTML='';
+  document.getElementById('ab-status').textContent='🃏 Cards deal ho rahi hain...';
+  const win=shouldWin();
+  const winSide=win?abChoice:(abChoice==='andar'?'bahar':'andar');
+  let found=false,dealCount=0,andarTurn=true;
+  function dealNext(){
+    if(found||dealCount>20){if(!found){gameRunning=false;processResult(win,winSide.toUpperCase(),null);}return;}
+    dealCount++;
+    const side=andarTurn?'andar':'bahar'; andarTurn=!andarTurn;
+    let card;
+    if(dealCount>=6&&side===winSide&&Math.random()<0.5){card={rank:jokerCard.rank,suit:SUITS[Math.floor(Math.random()*4)]};}
+    else{card=randCard();while(card.rank===jokerCard.rank)card=randCard();}
+    const isMatch=card.rank===jokerCard.rank&&side===winSide;
+    const isRed=RED.includes(card.suit);
+    const container=document.getElementById(side+'-cards');
+    const el=document.createElement('div');
+    el.className='ab-sc'+(isRed?' red':'');
+    el.textContent=card.rank+card.suit;
+    container.appendChild(el);
+    playSound('card');
+    if(isMatch){
+      found=true;
+      el.style.border='2px solid gold'; el.style.boxShadow='0 0 8px gold';
+      document.getElementById('ab-status').textContent=`✅ ${jokerCard.rank} ${side.toUpperCase()} mein aaya!`;
+      setTimeout(()=>{
+        gameRunning=false;
+        processResult(win,winSide.toUpperCase(),null);
+        setTimeout(()=>{buildAndarBahar();abChoice='';},2500);
+      },500);
+    } else { setTimeout(dealNext,340); }
+  }
+  dealNext();
+}
+
+// ========== CLOCK SPIN GAME ==========
+const CLOCK_MULTIPLIERS={1:8,2:2,3:7,4:5,5:3,6:4,7:2,8:5,9:3,10:6,11:4,12:10};
+let clockRunning=false, clockHandDeg=0, selectedClockNum=null;
+// Special number counters
+let clockTotalSpins=0;
+let lastNum4Spin=0;
+let num7Counter=0;
+let num1Counter=0;
+
+function buildClockSpin(){
+  stopClockAutoCycle();
+  const nums=[];
+  for(let i=1;i<=12;i++){
+    const angle=(i/12)*360-90;
+    const rad=(angle*Math.PI)/180;
+    const r=72;
+    const cx=95+r*Math.cos(rad);
+    const cy=95+r*Math.sin(rad);
+    nums.push(`<div class="clock-num" id="cn-${i}" style="left:${cx}px;top:${cy}px;" onclick="selectClockNum(${i})">${i}<span class="mult">${CLOCK_MULTIPLIERS[i]}×</span></div>`);
+  }
+  const tableItems=[];
+  for(let i=1;i<=12;i++){
+    tableItems.push(`<div class="mt-item" id="mt-${i}" onclick="selectClockNum(${i})"><div class="mt-num">${i}</div><div class="mt-mult">${CLOCK_MULTIPLIERS[i]}×</div></div>`);
+  }
+  document.getElementById('game-area').innerHTML=`
+    <div class="clock-scene">
+      <!-- GOL TIMER RING (Hed Tell jaisi) -->
+      <div style="position:relative;width:210px;height:210px;margin:0 auto;">
+        <!-- Outer gol ring SVG -->
+        <svg style="position:absolute;top:0;left:0;width:210px;height:210px;">
+          <circle fill="none" stroke="rgba(255,215,0,.1)" stroke-width="8" cx="105" cy="105" r="100"/>
+          <circle id="clock-ring-prog" fill="none" stroke="var(--gold2)" stroke-width="8" stroke-linecap="round"
+            cx="105" cy="105" r="100"
+            stroke-dasharray="628"
+            stroke-dashoffset="0"
+            style="transform:rotate(-90deg);transform-origin:105px 105px;transition:stroke-dashoffset 0.1s linear;"/>
+        </svg>
+        <!-- Timer number badge (top center) -->
+        <div id="clock-countdown-badge" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);font-family:'Cinzel Decorative',serif;font-size:1rem;color:var(--gold2);text-shadow:0 0 10px var(--gold);z-index:20;background:rgba(0,0,0,.8);padding:1px 10px;border-radius:10px;border:1px solid var(--gold);">8s</div>
+        <!-- Status badge (bottom center) -->
+        <div id="clock-timer-badge" style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a3a1a,#0d5c0d);border:1px solid #4caf50;border-radius:20px;padding:2px 10px;font-size:.58rem;color:#81c784;letter-spacing:1px;z-index:20;white-space:nowrap;">🟢 BET LAGAO</div>
+        <!-- Actual Clock Face (inside ring) -->
+        <div class="clock-wrap" style="position:absolute;top:10px;left:10px;">
+          <div class="clock-face">
+            ${nums.join('')}
+            <div class="clock-hand hand-hour" id="ch-hour" style="transform:rotate(0deg) translateX(-50%);left:50%;"></div>
+            <div class="clock-hand hand-minute" id="ch-minute" style="transform:rotate(0deg) translateX(-50%);left:50%;"></div>
+            <div class="clock-hand hand-second" id="ch-second" style="transform:rotate(0deg) translateX(-50%);left:50%;"></div>
+            <div class="clock-center"></div>
+            <div class="clock-result-num" id="clock-res-num"></div>
+          </div>
+        </div>
+      </div>
+      <div class="status-bar" id="clock-status">🕐 Number chuno — Har round auto result aayega!</div>
+      <div class="mult-table">${tableItems.join('')}</div>
+    </div>`;
+  document.getElementById('game-actions').innerHTML=`<div style="text-align:center;font-size:.65rem;color:var(--gold);letter-spacing:2px;padding:8px;">⚡ AUTO ROUND — Number chuno aur wait karo</div>`;
+  clockRunning=false; selectedClockNum=null;
+  setHandAngle('ch-hour',0);
+  setHandAngle('ch-minute',0);
+  setHandAngle('ch-second',0);
+  clockHandDeg=0;
+  startClockAutoCycle();
+}
+
+let clockAutoCycleInterval=null;
+let clockLastRoundSeed=-1;
+function stopClockAutoCycle(){ if(clockAutoCycleInterval){clearInterval(clockAutoCycleInterval);clockAutoCycleInterval=null;} }
+
+// Global clock result — 1-12, same for all players each round
+function getGlobalClockResult(){
+  const seed = getGlobalRoundSeed();
+  const rand = seededRandom(seed + 7);
+  return Math.ceil(rand * 12);
+}
+
+function startClockAutoCycle(){
+  stopClockAutoCycle();
+  function tick(){
+    const phase=getRoundPhase();
+    const cdEl=document.getElementById('clock-countdown-badge');
+    const tbEl=document.getElementById('clock-timer-badge');
+    const ringEl=document.getElementById('clock-ring-prog');
+    const stEl=document.getElementById('clock-status');
+    if(!cdEl) return; // screen closed
+    const circumference=628; // 2*pi*100
+
+    if(phase.isBetting){
+      const t=phase.timeLeft;
+      // Timer number update
+      if(cdEl){cdEl.textContent=t+'s';cdEl.style.color=t<=3?'#ff7043':t<=5?'#ffa726':'var(--gold2)';cdEl.style.borderColor=t<=3?'#f44336':t<=5?'#ffa726':'var(--gold)';}
+      // Gol ring update
+      if(ringEl){ringEl.style.strokeDashoffset=circumference*(1-t/BET_SECONDS);ringEl.style.stroke=t<=3?'#f44336':t<=5?'#ffa726':'var(--gold2)';}
+      // Badge
+      if(tbEl){tbEl.style.background='linear-gradient(135deg,#1a3a1a,#0d5c0d)';tbEl.style.borderColor='#4caf50';tbEl.style.color='#81c784';tbEl.textContent='🟢 BET LAGAO';}
+      if(stEl&&!clockRunning) stEl.textContent=`🎯 Number chuno! ${t} second bache...`;
+      if(t<=3) playSound('tick_fast');
+      else if(t===BET_SECONDS) playSound('tick');
+      clockRunning=false;
+    } else {
+      // Result phase
+      const seed=getGlobalRoundSeed();
+      if(cdEl){cdEl.textContent='⏳';cdEl.style.color='#aaa';cdEl.style.borderColor='#555';}
+      if(ringEl){ringEl.style.strokeDashoffset=circumference;ringEl.style.stroke='#555';}
+      if(tbEl){tbEl.style.background='linear-gradient(135deg,#3a1a1a,#5c0d0d)';tbEl.style.borderColor='#f44336';tbEl.style.color='#ef9a9a';tbEl.textContent='🔴 BETTING BAND';}
+      if(seed!==clockLastRoundSeed){
+        clockLastRoundSeed=seed;
+        doClockSpinGlobal();
+      } else {
+        const t=phase.timeLeft;
+        if(stEl&&!clockRunning) stEl.textContent=`⏳ Agla round: ${t} second...`;
+      }
+    }
+  }
+  const msToNextSec=1000-(Date.now()%1000);
+  setTimeout(()=>{ tick(); clockAutoCycleInterval=setInterval(tick,1000); },msToNextSec);
+}
+
+function doClockSpinGlobal(){
+  if(clockRunning) return;
+  clockRunning=true;
+  // Admin ne result set kiya hai? Cloud se check karo
+  const adminClockResult = checkAdminClockResult();
+  const resultNum = adminClockResult ? adminClockResult : getGlobalClockResult();
+  if(adminClockResult) localStorage.removeItem('kgf_admin_clock_result');
+
+  for(let i=1;i<=12;i++) document.getElementById('mt-'+i)?.classList.remove('highlight');
+  document.getElementById('clock-res-num')?.classList.remove('show');
+
+  const targetDeg=(resultNum/12)*360;
+  const spins=4+Math.floor(Math.random()*3);
+  const startDeg=clockHandDeg%360;
+  let endDeg=startDeg+(spins*360)+(targetDeg-startDeg%360+360)%360;
+
+  const hourHand=document.getElementById('ch-hour');
+  const minHand=document.getElementById('ch-minute');
+  const secHand=document.getElementById('ch-second');
+  if(!hourHand){clockRunning=false;return;}
+
+  const duration=2.5;
+  hourHand.style.setProperty('--start-deg',startDeg+'deg');
+  hourHand.style.setProperty('--end-deg',endDeg+'deg');
+  hourHand.style.setProperty('--spin-dur',duration+'s');
+  hourHand.style.transform=''; hourHand.classList.add('spinning');
+
+  const mEnd=(clockHandDeg%360)+(spins+2)*360+targetDeg;
+  minHand.style.setProperty('--start-deg',(clockHandDeg*2)%360+'deg');
+  minHand.style.setProperty('--end-deg',mEnd*2+'deg');
+  minHand.style.setProperty('--spin-dur',(duration*0.85)+'s');
+  minHand.style.transform=''; minHand.classList.add('spinning');
+
+  const sEnd=mEnd*12;
+  secHand.style.setProperty('--start-deg','0deg');
+  secHand.style.setProperty('--end-deg',sEnd+'deg');
+  secHand.style.setProperty('--spin-dur',(duration*0.6)+'s');
+  secHand.style.transform=''; secHand.classList.add('spinning');
+
+  playSound('clock_spin',{dur:duration});
+  const stEl=document.getElementById('clock-status');
+  if(stEl) stEl.textContent='🌀 Ghadi ghoom rahi hai...';
+
+  setTimeout(()=>{
+    hourHand.classList.remove('spinning');
+    minHand.classList.remove('spinning');
+    secHand.classList.remove('spinning');
+    setHandAngle('ch-hour',targetDeg);
+    setHandAngle('ch-minute',(targetDeg*12)%360);
+    setHandAngle('ch-second',(targetDeg*144)%360);
+    clockHandDeg=endDeg;
+
+    document.getElementById('mt-'+resultNum)?.classList.add('highlight');
+    const mult=CLOCK_MULTIPLIERS[resultNum];
+    const resEl=document.getElementById('clock-res-num');
+
+    if(selectedClockNum){
+      // Jis number pe bet lagayi, shouldWin() true ho to wahi result
+      const forceWin = shouldWin();
+      const finalNum = forceWin ? selectedClockNum : resultNum;
+      const isWin = forceWin;
+      const finalMult = CLOCK_MULTIPLIERS[finalNum];
+      const winAmount = Math.round(currentBet * finalMult);
+      // Hand ko finalNum pe set karo
+      const finalDeg = (finalNum/12)*360;
+      setHandAngle('ch-hour', finalDeg);
+      setHandAngle('ch-minute', (finalDeg*12)%360);
+      setHandAngle('ch-second', (finalDeg*144)%360);
+      for(let i=1;i<=12;i++) document.getElementById('mt-'+i)?.classList.remove('highlight');
+      document.getElementById('mt-'+finalNum)?.classList.add('highlight');
+      if(resEl){resEl.textContent=finalNum;}
+
+      if(isWin){
+        coins+=winAmount;
+        if(currentUser) USERS[currentUser].coins=coins;
+        totalGames++;
+        addHistory('🕐 Clock #'+finalNum,+winAmount);
+        if(stEl) stEl.textContent=`🏆 ${finalNum} pe ruka! ${finalMult}× = +${winAmount} coins!`;
+        showToast(`🏆 ${finalNum} pe ruka! +${winAmount} (${finalMult}×)`,'win');
+        playSound('win');
+        if(resEl){resEl.style.color='#ffd700';resEl.classList.add('show');}
+      } else {
+        coins=Math.max(0,coins-currentBet);
+        if(currentUser) USERS[currentUser].coins=coins;
+        totalGames++;
+        addHistory('🕐 Clock #'+finalNum,-currentBet);
+        if(stEl) stEl.textContent=`💀 ${finalNum} pe ruka! Haar. -${currentBet} coins`;
+        showToast(`💀 Haar! -${currentBet}`,'lose');
+        playSound('lose');
+        if(resEl){resEl.style.color='#ff5555';resEl.classList.add('show');}
+      }
+      updateWalletDisplay(); saveData();
+    } else {
+      // No bet — sirf result dikho (sab players ko)
+      if(stEl) stEl.textContent=`🕐 Result: ${resultNum} pe ruka! (${mult}×)`;
+      showToast(`🕐 ${resultNum} aaya! (${mult}×) — Bet lagao!`,'win');
+      if(resEl){resEl.textContent=resultNum;resEl.style.color='var(--gold2)';resEl.classList.add('show');}
+    }
+
+    // Reset for next round
+    setTimeout(()=>{
+      selectedClockNum=null;
+      clockRunning=false;
+      localStorage.setItem('kgf_live_bets_clock','[]');
+      for(let i=1;i<=12;i++){
+        document.getElementById('cn-'+i)?.classList.remove('selected-num');
+        document.getElementById('mt-'+i)?.classList.remove('selected-mt');
+      }
+      const r2=document.getElementById('clock-res-num');
+      if(r2) r2.classList.remove('show');
+    },3000);
+  },duration*1000+200);
+}
+
+function selectClockNum(n){
+  const phase=getRoundPhase();
+  if(!phase.isBetting){ showToast('⏳ Betting band hai! Agla round wait karo.','lose'); return; }
+  if(clockRunning) return;
+  selectedClockNum=n;
+  for(let i=1;i<=12;i++){
+    document.getElementById('cn-'+i)?.classList.remove('selected-num');
+    document.getElementById('mt-'+i)?.classList.remove('selected-mt');
+  }
+  document.getElementById('cn-'+n)?.classList.add('selected-num');
+  document.getElementById('mt-'+n)?.classList.add('selected-mt');
+  const stEl=document.getElementById('clock-status');
+  if(stEl) stEl.textContent=`✅ ${n} select! (${CLOCK_MULTIPLIERS[n]}×) — Result aane wala hai!`;
+  showToast(`✅ ${n} select hua! Wait karo result ke liye.`,'win');
+  playSound('click');
+  // Admin ke liye bet save karo
+  try {
+    const bets = JSON.parse(localStorage.getItem('kgf_live_bets_clock')||'[]');
+    const existing = bets.findIndex(b=>b.user===currentUser);
+    const entry = {user:currentUser, naam:currentUser&&USERS[currentUser]?USERS[currentUser].naam||currentUser:currentUser, num:n, amount:currentBet, time:new Date().toLocaleTimeString()};
+    if(existing>=0) bets[existing]=entry; else bets.push(entry);
+    localStorage.setItem('kgf_live_bets_clock', JSON.stringify(bets));
+    saveToCloud(); // Turant cloud pe save — admin ko dikh jaayega
+  } catch(e){}
+}
+
+function setHandAngle(id,deg){
+  const el=document.getElementById(id);
+  if(el) el.style.transform=`rotate(${deg}deg) translateX(-50%)`;
+}
+
+// ========== TOAST ==========
+let tTimer;
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.className='toast show '+(type==='win'?'win-t':'lose-t');
+  t.textContent=msg;
+  clearTimeout(tTimer);
+  tTimer=setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+// ========== SOUNDS ==========
+let _sharedAudioCtx = null;
+function getAudioCtx(){
+  try{
+    if(!_sharedAudioCtx || _sharedAudioCtx.state==='closed'){
+      _sharedAudioCtx = new(window.AudioContext||window.webkitAudioContext)();
+    }
+    if(_sharedAudioCtx.state==='suspended') _sharedAudioCtx.resume();
+    return _sharedAudioCtx;
+  }catch(e){ return null; }
+}
+
+function playSound(type, options){
+  try{
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime; // capture ONCE — fixes the coin_flip/clock_spin loop bug
+
+    if(type==='win'){
+      [523,659,784,1047].forEach((freq,i)=>{
+        const o=ctx.createOscillator(); const g=ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value=freq;
+        g.gain.setValueAtTime(0, now+i*.12);
+        g.gain.linearRampToValueAtTime(.35, now+i*.12+.02);
+        g.gain.exponentialRampToValueAtTime(.001, now+i*.12+.3);
+        o.start(now+i*.12); o.stop(now+i*.12+.3);
+      });
+
+    }else if(type==='lose'){
+      const o=ctx.createOscillator(); const g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type='sawtooth';
+      o.frequency.setValueAtTime(280, now);
+      o.frequency.linearRampToValueAtTime(90, now+.5);
+      g.gain.setValueAtTime(.35, now);
+      g.gain.exponentialRampToValueAtTime(.001, now+.55);
+      o.start(now); o.stop(now+.55);
+
+    }else if(type==='tick'){
+      // Single tick click — metallic
+      const o=ctx.createOscillator(); const g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type='sine';
+      o.frequency.value=900;
+      g.gain.setValueAtTime(.22, now);
+      g.gain.exponentialRampToValueAtTime(.001, now+.08);
+      o.start(now); o.stop(now+.08);
+
+    }else if(type==='tick_fast'){
+      const o=ctx.createOscillator(); const g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type='sine';
+      o.frequency.value=1200;
+      g.gain.setValueAtTime(.28, now);
+      g.gain.exponentialRampToValueAtTime(.001, now+.06);
+      o.start(now); o.stop(now+.06);
+
+    }else if(type==='card'){
+      const o=ctx.createOscillator(); const g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type='triangle';
+      o.frequency.setValueAtTime(700, now);
+      o.frequency.exponentialRampToValueAtTime(220, now+.07);
+      g.gain.setValueAtTime(.22, now);
+      g.gain.exponentialRampToValueAtTime(.001, now+.08);
+      o.start(now); o.stop(now+.08);
+
+    }else if(type==='click'){
+      const o=ctx.createOscillator(); const g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=480;
+      g.gain.setValueAtTime(.15, now);
+      g.gain.exponentialRampToValueAtTime(.001, now+.05);
+      o.start(now); o.stop(now+.05);
+
+    }else if(type==='coin_flip'){
+      // Continuous metallic coin spin — 1.8s, fast start slows to stop
+      const dur = 1.8;
+      let t = now; // use captured `now`, NOT ctx.currentTime inside loop
+      let interval = 0.042;
+      while(t < now + dur){
+        const progress = (t - now) / dur;
+        const oc=ctx.createOscillator(); const gc=ctx.createGain();
+        oc.connect(gc); gc.connect(ctx.destination);
+        oc.type='triangle';
+        oc.frequency.value = 3400 - progress*1400;
+        // fade out last 20%
+        const vol = progress > 0.8 ? 0.2*(1-(progress-0.8)/0.2) : 0.2;
+        gc.gain.setValueAtTime(0, t);
+        gc.gain.linearRampToValueAtTime(vol, t+0.007);
+        gc.gain.exponentialRampToValueAtTime(0.001, t+interval*0.82);
+        oc.start(t); oc.stop(t+interval);
+        interval = 0.042 + progress*0.13; // slows gradually
+        t += interval;
+      }
+
+    }else if(type==='clock_spin'){
+      // Tick-tick clock sound — full spin duration, slows to stop
+      const dur = (options && options.dur) ? options.dur : 2.8;
+      let t = now; // captured ONCE — fixes the original bug
+      let interval = 0.032;
+      while(t < now + dur){
+        const progress = (t - now) / dur;
+        const ot=ctx.createOscillator(); const gt=ctx.createGain();
+        ot.connect(gt); gt.connect(ctx.destination);
+        ot.type='square';
+        ot.frequency.value = 1900 - progress*950;
+        // fade out last 15%
+        const vol = progress > 0.85 ? 0.14*(1-(progress-0.85)/0.15) : 0.14;
+        gt.gain.setValueAtTime(0, t);
+        gt.gain.linearRampToValueAtTime(vol, t+0.004);
+        gt.gain.exponentialRampToValueAtTime(0.001, t+interval*0.78);
+        ot.start(t); ot.stop(t+interval);
+        interval = 0.032 + progress*0.16; // slows down
+        t += interval;
+      }
+    }
+  }catch(e){}
+}
+
+
+
+// ========== PWA SETUP ==========
+let deferredInstallPrompt = null;
+
+function generateIcon(){
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  // Background
+  const grad = ctx.createRadialGradient(256,256,0,256,256,256);
+  grad.addColorStop(0,'#2d1600');
+  grad.addColorStop(1,'#0a0500');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.roundRect(0,0,512,512,80);
+  ctx.fill();
+  // Gold border
+  ctx.strokeStyle = '#c8960c';
+  ctx.lineWidth = 18;
+  ctx.beginPath();
+  ctx.roundRect(9,9,494,494,76);
+  ctx.stroke();
+  // Crown emoji
+  ctx.font = '260px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('👑', 256, 230);
+  // KGF text
+  ctx.font = 'bold 88px serif';
+  ctx.fillStyle = '#ffd700';
+  ctx.fillText('KGF', 256, 400);
+  ctx.font = '42px serif';
+  ctx.fillStyle = '#c8960c';
+  ctx.fillText('CASINO', 256, 460);
+  return canvas.toDataURL('image/png');
+}
+
+(function setupPWA(){
+  const iconDataURL = generateIcon();
+
+  // Set apple icon
+  document.getElementById('apple-icon').href = iconDataURL;
+
+  // Create manifest
+  const manifest = {
+    name: "KGF Casino",
+    short_name: "KGF 🎰",
+    description: "KGF Casino — Jeet Ka Raaj! Hed Tell, Andar Bahar, Clock Spin",
+    start_url: "./",
+    display: "standalone",
+    orientation: "portrait",
+    background_color: "#0a0500",
+    theme_color: "#c8960c",
+    icons: [
+      { src: iconDataURL, sizes: "192x192", type: "image/png", purpose: "any maskable" },
+      { src: iconDataURL, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
+  document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+
+  // Service Worker
+  const swCode = `
+    const CACHE = 'kgf-v1';
+    self.addEventListener('install', e => { self.skipWaiting(); });
+    self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+    self.addEventListener('fetch', e => { e.respondWith(fetch(e.request).catch(()=>caches.match(e.request))); });
+  `;
+  try {
+    const swBlob = new Blob([swCode], {type:'application/javascript'});
+    const swURL = URL.createObjectURL(swBlob);
+    navigator.serviceWorker?.register(swURL);
+  } catch(e){}
+})();
+
+// Install prompt
+// ========== AUTO LOGIN (session restore on page load) ==========
+// ========== VERSION / CACHE BUSTING ==========
+// Jab bhi aap code update karo, is number ko badal do (e.g. v3, v4...)
+// Purane users ka browser cache flush ho jayega aur naya code milega
+const APP_VERSION = 'v5-secure';
+(function checkVersion(){
+  try {
+    const savedVer = localStorage.getItem('kgf_app_version');
+    if(savedVer !== APP_VERSION){
+      // Version naya hai — code update hua hai
+      // User data bachao, baaki sab clear karo
+      const users = localStorage.getItem('kgf_users');
+      const session = localStorage.getItem('kgf_session');
+      const wa = localStorage.getItem('kgf_wa_number');
+      const wd = localStorage.getItem('kgf_withdraw_requests');
+      const boosted = localStorage.getItem('kgf_boosted_users');
+      const globalBoost = localStorage.getItem('kgf_global_boost');
+      const upi = localStorage.getItem('kgf_upi_id');
+      const adminPhone = localStorage.getItem('kgf_admin_phone');
+      const adminPass = localStorage.getItem('kgf_admin_pass');
+      localStorage.clear();
+      if(users) localStorage.setItem('kgf_users', users);
+      if(session) localStorage.setItem('kgf_session', session);
+      if(wa) localStorage.setItem('kgf_wa_number', wa);
+      if(wd) localStorage.setItem('kgf_withdraw_requests', wd);
+      if(boosted) localStorage.setItem('kgf_boosted_users', boosted);
+      if(globalBoost) localStorage.setItem('kgf_global_boost', globalBoost);
+      if(upi) localStorage.setItem('kgf_upi_id', upi);
+      if(adminPhone) localStorage.setItem('kgf_admin_phone', adminPhone);
+      if(adminPass) localStorage.setItem('kgf_admin_pass', adminPass);
+      localStorage.setItem('kgf_app_version', APP_VERSION);
+      // Page reload karo fresh code ke saath
+      if(savedVer) window.location.reload(true);
+    }
+  } catch(e){}
+})();
+
+// Auto-login ab initApp() mein handle hota hai (upar)
+
+// Pull-to-refresh aur swipe-back completely disable
+let touchStartX = 0;
+let touchStartY = 0;
+document.addEventListener('touchstart', function(e){
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, {passive:true});
+document.addEventListener('touchmove', function(e){
+  if(e.touches.length > 1) return;
+  const el = e.target;
+  let node = el;
+  let scrollable = false;
+  while(node){
+    if(node.scrollTop > 0 || (node.scrollHeight > node.clientHeight && getComputedStyle(node).overflowY !== 'hidden')){
+      scrollable = true; break;
+    }
+    node = node.parentElement;
+  }
+  if(!scrollable) e.preventDefault();
+
+  // Game screen par swipe-back (left/right horizontal gesture) block karo
+  const gameScreen = document.getElementById('game-screen');
+  if(gameScreen && gameScreen.classList.contains('active')){
+    const dx = Math.abs(e.touches[0].clientX - touchStartX);
+    const dy = Math.abs(e.touches[0].clientY - touchStartY);
+    if(dx > dy){ e.preventDefault(); }
+  }
+}, {passive:false});
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  document.getElementById('pwa-install-bar').style.display = 'block';
+  const hb = document.getElementById('home-install-btn');
+  if(hb){ hb.textContent = '📲 App Download Karo'; hb.disabled = false; hb.style.opacity='1'; }
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwa-install-bar').style.display = 'none';
+  showToast('🎉 App install ho gaya! Ab offline bhi kheloge!','win');
+});
+</script>
+</body>
+</html>
